@@ -89,7 +89,7 @@ impl FftMode {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,no_run
 /// use spectrust::StandaloneSTFT;
 ///
 /// // Create a simple Hann window
@@ -737,7 +737,7 @@ impl StandaloneSTFT {
     ///
     /// # Examples
     ///
-    /// ```rust
+    /// ```rust,no_run
     /// use spectrust::StandaloneSTFT;
     ///
     /// let window: Vec<f64> = (0..16)

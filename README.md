@@ -12,7 +12,7 @@ This repository contains identical Short-Time Fourier Transform (STFT) implement
 ### Docker Infrastructure
 - `docker/rust.Dockerfile` - Rust STFT implementation container
 - `docker/py.Dockerfile` - Python STFT implementation and plotting container
-- `docker/create-test.Dockerfile` - Dockerfile for testing the Rust crate in a clean environment
+- `docker/create_test.Dockerfile` - Dockerfile for testing the Rust crate in a clean environment
 - `run_docker_comparison.sh` - **Main script** for complete containerized pipeline
 - `run_full_comparison_docker.py` - Python script for data generation and comparison
 

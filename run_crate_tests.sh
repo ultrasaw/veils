@@ -8,7 +8,7 @@ echo "========================================"
 
 # Build the test image
 echo "📦 Building Docker test environment..."
-docker build -f docker/create-test.Dockerfile -t spectrust-crate-test .
+docker build -f docker/create_test.Dockerfile -t spectrust-crate-test .
 
 if [ $? -ne 0 ]; then
     echo "❌ Docker build failed!"
