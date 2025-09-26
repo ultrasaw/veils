@@ -138,7 +138,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "spectrust-stft"
+name = "spectrust"
 version = "0.1.0"
 dependencies = [
  "num-complex",

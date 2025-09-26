@@ -1,5 +1,5 @@
 use num_complex::Complex;
-use serde_json;
+
 use spectrust::StandaloneSTFT;
 use std::fs;
 
@@ -56,9 +56,9 @@ fn test_signal(
     let time_slices = stft_result.len();
     let mut stft_python_format = vec![vec![Complex::new(0.0, 0.0); time_slices]; f_pts];
 
-    for t in 0..time_slices {
-        for f in 0..f_pts {
-            stft_python_format[f][t] = stft_result[t][f];
+    for (t, row) in stft_result.iter().enumerate() {
+        for (f, value) in row.iter().enumerate() {
+            stft_python_format[f][t] = *value;
         }
     }
 
@@ -67,10 +67,11 @@ fn test_signal(
 
     // Calculate reconstruction error
     let min_len = signal.len().min(reconstructed.len());
-    let mut error_sum = 0.0;
-    for i in 0..min_len {
-        error_sum += (signal[i] - reconstructed[i]).abs();
-    }
+    let error_sum: f64 = signal[..min_len]
+        .iter()
+        .zip(reconstructed[..min_len].iter())
+        .map(|(a, b)| (a - b).abs())
+        .sum();
     let abs_error = error_sum / min_len as f64;
 
     // Calculate relative error

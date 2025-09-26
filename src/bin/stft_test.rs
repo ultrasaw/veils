@@ -1,9 +1,10 @@
 use num_complex::Complex;
-use serde_json;
+
 use spectrust::StandaloneSTFT;
 use std::fs;
 
 #[derive(serde::Deserialize)]
+#[allow(dead_code)]
 struct TestData {
     signal: Vec<f64>,
     window: Vec<f64>,
@@ -16,6 +17,7 @@ struct TestData {
 }
 
 #[derive(serde::Deserialize)]
+#[allow(dead_code)]
 struct StftProperties {
     m_num: usize,
     m_num_mid: usize,
@@ -25,13 +27,14 @@ struct StftProperties {
     mfft: usize,
 }
 
+#[allow(dead_code)]
 fn generate_random_walk(n_samples: usize, seed: u64) -> Vec<f64> {
     // Simple linear congruential generator for reproducible results
     let mut rng_state = seed;
     let mut signal = vec![0.0; n_samples];
     let mut cumsum = 0.0;
 
-    for i in 0..n_samples {
+    for (i, val) in signal.iter_mut().enumerate() {
         // LCG: next = (a * current + c) % m
         rng_state = rng_state.wrapping_mul(1664525).wrapping_add(1013904223);
         let uniform = (rng_state as f64) / (u64::MAX as f64);
@@ -49,12 +52,13 @@ fn generate_random_walk(n_samples: usize, seed: u64) -> Vec<f64> {
         };
 
         cumsum += normal;
-        signal[i] = cumsum;
+        *val = cumsum;
     }
 
     signal
 }
 
+#[allow(dead_code)]
 fn create_hann_window(length: usize) -> Vec<f64> {
     (0..length)
         .map(|n| 0.5 * (1.0 - (2.0 * std::f64::consts::PI * n as f64 / (length - 1) as f64).cos()))
@@ -66,7 +70,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test parameters (matching Python)
     let n_samples = 1000;
-    let window_length = 256;
+    let _window_length = 256;
     let hop_length = 64;
     let fs = 1000.0;
 
@@ -143,10 +147,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Also check Python reconstruction error for comparison
     let min_py_len = signal.len().min(test_data.reconstructed.len());
-    let mut py_error_sum = 0.0;
-    for i in 0..min_py_len {
-        py_error_sum += (signal[i] - test_data.reconstructed[i]).abs();
-    }
+    let py_error_sum: f64 = signal
+        .iter()
+        .zip(test_data.reconstructed.iter())
+        .take(min_py_len)
+        .map(|(s, r)| (s - r).abs())
+        .sum();
     let py_error = py_error_sum / min_py_len as f64;
     let py_relative_error = py_error / (signal_sum / min_py_len as f64);
 
@@ -199,10 +205,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let min_recon_len = python_reconstructed
         .len()
         .min(test_data.reconstructed.len());
-    let mut recon_diff_sum = 0.0;
-    for i in 0..min_recon_len {
-        recon_diff_sum += (python_reconstructed[i] - test_data.reconstructed[i]).abs();
-    }
+    let recon_diff_sum: f64 = python_reconstructed
+        .iter()
+        .zip(test_data.reconstructed.iter())
+        .take(min_recon_len)
+        .map(|(p, r)| (p - r).abs())
+        .sum();
     let recon_diff = recon_diff_sum / min_recon_len as f64;
     println!("\nReconstruction comparison (using Python STFT data):");
     println!("  Average difference: {:.2e}", recon_diff);

@@ -1,4 +1,4 @@
-"""//! # SpectRust: High-Performance STFT Library
+//! # SpectRust: High-Performance STFT Library
 //!
 //! SpectRust provides a high-performance Short-Time Fourier Transform (STFT) implementation
 //! with perfect compatibility to Python's scipy.signal.ShortTimeFFT.
@@ -396,7 +396,8 @@ impl StandaloneSTFT {
                 let fac = 2.0; // Assuming no PSD scaling for now
                 if self.mfft.is_multiple_of(2) {
                     // For even input length, the last entry is unpaired
-                    for x_i in x.iter_mut().skip(1).take(x.len() - 2) {
+                    let len = x.len();
+                    for x_i in x.iter_mut().skip(1).take(len - 2) {
                         *x_i *= fac;
                     }
                 } else {
@@ -445,7 +446,8 @@ impl StandaloneSTFT {
                 let fac = 2.0;
 
                 if self.mfft.is_multiple_of(2) {
-                    for xc_i in xc.iter_mut().skip(1).take(xc.len() - 2) {
+                    let len = xc.len();
+                    for xc_i in xc.iter_mut().skip(1).take(len - 2) {
                         *xc_i /= fac;
                     }
                 } else {
@@ -919,4 +921,3 @@ impl StandaloneSTFT {
         freqs
     }
 }
-""

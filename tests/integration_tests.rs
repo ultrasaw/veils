@@ -1,5 +1,5 @@
 use num_complex::Complex;
-use spectrust_stft::StandaloneSTFT;
+use spectrust::StandaloneSTFT;
 
 /// Convert STFT result from [time][freq] to [freq][time] format for ISTFT
 fn transpose_stft(stft_result: &[Vec<Complex<f64>>]) -> Vec<Vec<Complex<f64>>> {
@@ -11,9 +11,9 @@ fn transpose_stft(stft_result: &[Vec<Complex<f64>>]) -> Vec<Vec<Complex<f64>>> {
     let freq_bins = stft_result[0].len();
     let mut transposed = vec![vec![Complex::new(0.0, 0.0); time_slices]; freq_bins];
 
-    for t in 0..time_slices {
-        for f in 0..freq_bins {
-            transposed[f][t] = stft_result[t][f];
+    for (t, row) in stft_result.iter().enumerate() {
+        for (f, value) in row.iter().enumerate() {
+            transposed[f][t] = *value;
         }
     }
 

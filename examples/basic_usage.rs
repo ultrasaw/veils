@@ -1,5 +1,5 @@
 use num_complex::Complex;
-use spectrust_stft::StandaloneSTFT;
+use spectrust::StandaloneSTFT;
 
 /// Create a Hann window of given length
 fn hann_window(length: usize) -> Vec<f64> {
@@ -58,9 +58,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let freq_bins = stft_result[0].len();
         let mut stft_transposed = vec![vec![Complex::new(0.0, 0.0); time_slices]; freq_bins];
 
-        for t in 0..time_slices {
-            for f in 0..freq_bins {
-                stft_transposed[f][t] = stft_result[t][f];
+        for (t, row) in stft_result.iter().enumerate() {
+            for (f, value) in row.iter().enumerate() {
+                stft_transposed[f][t] = *value;
             }
         }
 

@@ -1,5 +1,5 @@
 use num_complex::Complex;
-use serde_json;
+
 use spectrust::StandaloneSTFT;
 use std::collections::HashMap;
 use std::fs;
@@ -57,9 +57,14 @@ fn calculate_stft_difference(
     let mut count = 0;
 
     // Compare all values
-    for t in 0..rust_stft.len().min(python_stft_real[0].len()) {
-        for f in 0..rust_stft[0].len().min(python_stft_real.len()) {
-            let rust_val = rust_stft[t][f];
+    for (t, rust_slice) in rust_stft.iter().enumerate() {
+        if t >= python_stft_real[0].len() {
+            continue;
+        }
+        for (f, &rust_val) in rust_slice.iter().enumerate() {
+            if f >= python_stft_real.len() {
+                continue;
+            }
             let python_val = Complex::new(python_stft_real[f][t], python_stft_imag[f][t]);
             total_diff += (rust_val - python_val).norm_sqr();
             count += 1;
@@ -97,9 +102,9 @@ fn test_signal(
     // Rust STFT is [time][freq], Python expects [freq][time]
     let mut rust_stft_python_format =
         vec![vec![Complex::new(0.0, 0.0); rust_stft.len()]; rust_stft[0].len()];
-    for t in 0..rust_stft.len() {
-        for f in 0..rust_stft[0].len() {
-            rust_stft_python_format[f][t] = rust_stft[t][f];
+    for (t, row) in rust_stft.iter().enumerate() {
+        for (f, val) in row.iter().enumerate() {
+            rust_stft_python_format[f][t] = *val;
         }
     }
 
@@ -109,41 +114,41 @@ fn test_signal(
 
     // Calculate Rust reconstruction error
     let min_len = test_data.signal.len().min(rust_reconstructed.len());
-    let mut rust_error_sum = 0.0;
-    let mut signal_sum = 0.0;
-
-    for i in 0..min_len {
-        rust_error_sum += (test_data.signal[i] - rust_reconstructed[i]).abs();
-        signal_sum += test_data.signal[i].abs();
-    }
+    let (rust_error_sum, signal_sum) = test_data.signal[..min_len]
+        .iter()
+        .zip(&rust_reconstructed[..min_len])
+        .fold((0.0, 0.0), |(err_sum, sig_sum), (sig, recon)| {
+            (err_sum + (sig - recon).abs(), sig_sum + sig.abs())
+        });
 
     let rust_abs_error = rust_error_sum / min_len as f64;
     let rust_rel_error = rust_abs_error / (signal_sum / min_len as f64);
 
     // Python STFT is already in [freq][time] format, convert to Vec<Vec<Complex<f64>>>
-    let mut python_stft_native = Vec::new();
-    for f in 0..test_data.stft_real.len() {
-        let mut freq_slice = Vec::new();
-        for t in 0..test_data.stft_real[0].len() {
-            freq_slice.push(Complex::new(
-                test_data.stft_real[f][t],
-                test_data.stft_imag[f][t],
-            ));
-        }
-        python_stft_native.push(freq_slice);
-    }
+    let python_stft_native: Vec<Vec<Complex<f64>>> = test_data
+        .stft_real
+        .iter()
+        .zip(test_data.stft_imag.iter())
+        .map(|(real_row, imag_row)| {
+            real_row
+                .iter()
+                .zip(imag_row.iter())
+                .map(|(real, imag)| Complex::new(*real, *imag))
+                .collect()
+        })
+        .collect();
 
     // Cross-check: Rust ISTFT with Python STFT data
     let cross_check_reconstructed = stft_mut.istft(&python_stft_native, None, None)?;
-    let mut cross_check_error_sum = 0.0;
     let cross_check_len = test_data
         .reconstructed
         .len()
         .min(cross_check_reconstructed.len());
-
-    for i in 0..cross_check_len {
-        cross_check_error_sum += (test_data.reconstructed[i] - cross_check_reconstructed[i]).abs();
-    }
+    let cross_check_error_sum: f64 = test_data.reconstructed[..cross_check_len]
+        .iter()
+        .zip(&cross_check_reconstructed[..cross_check_len])
+        .map(|(a, b)| (a - b).abs())
+        .sum();
     let istft_cross_check_error = cross_check_error_sum / cross_check_len as f64;
 
     // Calculate STFT matching error
@@ -217,7 +222,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("{}", "-".repeat(85));
 
     for result in &all_results {
-        let rust_status = if result.rust_abs_error < 1e-10 {
+        let _rust_status = if result.rust_abs_error < 1e-10 {
             "✅"
         } else if result.rust_abs_error < 1e-6 {
             "⚠️"
@@ -225,7 +230,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "❌"
         };
 
-        let stft_status = if result.stft_match_error < 1e-10 {
+        let _stft_status = if result.stft_match_error < 1e-10 {
             "✅"
         } else if result.stft_match_error < 1e-6 {
             "⚠️"
@@ -233,7 +238,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "❌"
         };
 
-        let istft_status = if result.istft_cross_check_error < 1e-10 {
+        let _istft_status = if result.istft_cross_check_error < 1e-10 {
             "✅"
         } else if result.istft_cross_check_error < 1e-6 {
             "⚠️"

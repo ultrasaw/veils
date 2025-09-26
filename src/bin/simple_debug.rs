@@ -1,5 +1,5 @@
 use num_complex::Complex;
-use serde_json;
+
 use spectrust::StandaloneSTFT;
 use std::fs;
 
@@ -22,6 +22,7 @@ struct Properties {
     f_pts: usize,
     p_min: i32,
     p_max: i32,
+    #[allow(dead_code)]
     mfft: usize,
 }
 
@@ -31,6 +32,7 @@ struct Analysis {
     reconstructed_peak_idx: usize,
     reconstructed_peak_val: f64,
     reconstruction_error: f64,
+    #[allow(dead_code)]
     nonzero_time_slices: Vec<usize>,
 }
 
@@ -171,15 +173,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let min_len = rust_reconstructed_from_python
         .len()
         .min(debug_data.reconstructed.len());
-    let mut max_recon_diff = 0.0f64;
-    let mut error_sum = 0.0;
+    let diffs: Vec<f64> = rust_reconstructed_from_python
+        .iter()
+        .zip(debug_data.reconstructed.iter())
+        .take(min_len)
+        .map(|(r, d)| (r - d).abs())
+        .collect();
 
-    for i in 0..min_len {
-        let diff = (rust_reconstructed_from_python[i] - debug_data.reconstructed[i]).abs();
-        max_recon_diff = max_recon_diff.max(diff);
-        error_sum += diff;
-    }
-
+    let max_recon_diff = diffs.iter().fold(0.0f64, |acc, &x| acc.max(x));
+    let error_sum: f64 = diffs.iter().sum();
     let mean_recon_diff = error_sum / min_len as f64;
 
     println!("Reconstruction comparison (Rust ISTFT with Python STFT):");
@@ -215,9 +217,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Convert Rust STFT to Python format for ISTFT
     let mut rust_stft_python_format =
         vec![vec![Complex::new(0.0, 0.0); rust_stft.len()]; rust_stft[0].len()];
-    for t in 0..rust_stft.len() {
-        for f in 0..rust_stft[0].len() {
-            rust_stft_python_format[f][t] = rust_stft[t][f];
+    for (t, time_slice) in rust_stft.iter().enumerate() {
+        for (f, &value) in time_slice.iter().enumerate() {
+            rust_stft_python_format[f][t] = value;
         }
     }
 
@@ -225,11 +227,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Compare with original signal
     let pipeline_min_len = debug_data.signal.len().min(rust_full_pipeline.len());
-    let mut pipeline_error_sum = 0.0;
-
-    for i in 0..pipeline_min_len {
-        pipeline_error_sum += (debug_data.signal[i] - rust_full_pipeline[i]).abs();
-    }
+    let pipeline_error_sum: f64 = debug_data
+        .signal
+        .iter()
+        .zip(rust_full_pipeline.iter())
+        .take(pipeline_min_len)
+        .map(|(s, r)| (s - r).abs())
+        .sum();
 
     let pipeline_error = pipeline_error_sum / pipeline_min_len as f64;
 

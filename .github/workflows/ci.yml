@@ -14,20 +14,14 @@ jobs:
     name: Test Suite
     runs-on: ubuntu-latest
     container:
-      image: debian:13
+      image: rust:1.89
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Install dependencies
-      run: apt-get update && apt-get install -y build-essential curl
-
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@master
-      with:
-        toolchain: stable
-        components: rustfmt, clippy
+    - name: Install components
+      run: rustup component add rustfmt && rustup component add clippy
 
     - name: Cache cargo registry
       uses: actions/cache@v3
@@ -64,16 +58,13 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
     container:
-      image: debian:13
+      image: rust:1.89
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Install dependencies
-      run: apt-get update && apt-get install -y build-essential curl
-
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
+    - name: Install components
+      run: rustup component add rustfmt && rustup component add clippy
 
     - name: Cache cargo
       uses: actions/cache@v3
@@ -97,17 +88,14 @@ jobs:
     runs-on: ubuntu-latest
     needs: sanity-check
     container:
-      image: debian:13
+      image: rust:1.89
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Install dependencies
-      run: apt-get update && apt-get install -y build-essential curl
-
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
+    - name: Install components
+      run: rustup component add rustfmt && rustup component add clippy
 
     - name: Cache cargo
       uses: actions/cache@v3
@@ -126,16 +114,13 @@ jobs:
     runs-on: ubuntu-latest
     needs: sanity-check
     container:
-      image: debian:13
+      image: rust:1.89
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Install dependencies
-      run: apt-get update && apt-get install -y build-essential curl
-
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
+    - name: Install components
+      run: rustup component add rustfmt && rustup component add clippy
 
     - name: Cache cargo
       uses: actions/cache@v3
