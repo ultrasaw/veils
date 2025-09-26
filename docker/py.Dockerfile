@@ -19,6 +19,3 @@ RUN mkdir -p comparison_results
 # Copy Python files
 COPY standalone_stft.py ./
 COPY run_full_comparison_docker.py ./
-
-# Set entrypoint to run the Docker version of full comparison
-ENTRYPOINT ["python", "run_full_comparison_docker.py"]

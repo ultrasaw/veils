@@ -21,7 +21,20 @@ docker build -f docker/py.Dockerfile -t spectrust-python .
 
 echo ""
 
-# Step 2: Run Rust container first to generate test data and results
+# Step 2: Run Python container to generate data
+echo "📊 Generating test data..."
+docker run --rm -v $(pwd)/comparison_results:/workspace/comparison_results spectrust-python python run_full_comparison_docker.py --generate-data
+
+if [ $? -ne 0 ]; then
+    echo "❌ Data generation failed!"
+    exit 1
+fi
+
+echo "✅ Test data generated successfully"
+echo ""
+
+
+# Step 3: Run Rust container
 echo "🦀 Running Rust STFT implementation..."
 docker run --rm -v $(pwd)/comparison_results:/workspace/comparison_results spectrust-rust
 
@@ -33,9 +46,9 @@ fi
 echo "✅ Rust container completed successfully"
 echo ""
 
-# Step 3: Run Python container to process results and generate plots
+# Step 4: Run Python container to process results and generate plots
 echo "🐍 Running Python STFT implementation and plotting..."
-docker run --rm -v $(pwd)/comparison_results:/workspace/comparison_results spectrust-python
+docker run --rm -v $(pwd)/comparison_results:/workspace/comparison_results spectrust-python python run_full_comparison_docker.py --run-comparison
 
 if [ $? -ne 0 ]; then
     echo "❌ Python container failed!"
