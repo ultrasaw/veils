@@ -9,14 +9,47 @@ This repository contains identical Short-Time Fourier Transform (STFT) implement
 - `src/lib.rs` - Rust STFT implementation
 - `src/bin/shared_data_test.rs` - Rust test binary for pipeline verification
 
+### Test Scripts (Local Development)
+- `run_code_quality_checks.sh` - **Fast quality checks** (formatting + clippy) → matches CI `test` job
+- `run_comprehensive_tests.sh` - **Full test suite** (build + tests + docs) → matches CI `comprehensive-test` job  
+- `run_crate_tests.sh` - **Publishing readiness** (clean env + publish dry-run) → matches CI `publish-check` job
+- `run_docker_comparison.sh` - **Python vs Rust comparison** (complete containerized pipeline)
+
 ### Docker Infrastructure
-- `docker/rust.Dockerfile` - Rust STFT implementation container
+- `docker/code_quality.Dockerfile` - Base Rust environment with fmt/clippy for quality checks
+- `docker/rust.Dockerfile` - Rust STFT implementation container for comparisons
 - `docker/py.Dockerfile` - Python STFT implementation and plotting container
-- `docker/create_test.Dockerfile` - Dockerfile for testing the Rust crate in a clean environment
-- `run_docker_comparison.sh` - **Main script** for complete containerized pipeline
+- `docker/create_test.Dockerfile` - Clean environment for crate publishing tests
 - `run_full_comparison_docker.py` - Python script for data generation and comparison
 
+## Local Testing Scripts → CI Jobs Mapping
+
+| Local Script | CI Job | Purpose | Speed |
+|-------------|---------|---------|-------|
+| `./run_code_quality_checks.sh` | `test` | Format + lint checks | ⚡ **Fast** (30s) |
+| `./run_comprehensive_tests.sh` | `comprehensive-test` | Build + all tests + docs | 🔄 **Medium** (2-3min) |
+| `./run_crate_tests.sh` | `publish-check` | Clean env + publish dry-run | 🐌 **Slow** (5-10min) |
+| `./run_docker_comparison.sh` | `sanity-check` | Python vs Rust verification | 🐌 **Slow** (varies) |
+
+**💡 Tip**: Run `./run_code_quality_checks.sh` first for fast feedback, then `./run_comprehensive_tests.sh` for full validation.
+
 ## Usage
+
+### Local Development Testing
+
+```bash
+# Quick quality check (matches CI fast-fail)
+./run_code_quality_checks.sh
+
+# Full test suite (matches CI comprehensive testing)  
+./run_comprehensive_tests.sh
+
+# Publishing readiness (matches CI publish check)
+./run_crate_tests.sh
+
+# Python vs Rust comparison (matches CI sanity check)
+./run_docker_comparison.sh
+```
 
 ### Complete Containerized Pipeline (Recommended)
 
@@ -79,10 +112,11 @@ docker run --rm -v $(pwd)/comparison_results:/workspace/comparison_results spect
 ## Docker Benefits
 
 - **🔒 Reproducible Environment**: Identical results across different systems
-- **📦 Zero Setup**: No need to install Rust, Python dependencies, or manage versions
-- **🚀 One Command**: Complete pipeline runs with `./run_docker_comparison.sh`
-- **🔄 Isolated Execution**: Rust and Python run in separate, clean containers
+- **📦 Zero Setup**: No need to install Rust, Python dependencies, or manage versions  
+- **🚀 Local CI Matching**: Test scripts mirror CI jobs exactly using same Docker environments
+- **🔄 Isolated Execution**: Each test runs in clean, separate containers
 - **📊 Automatic Plotting**: All visualizations generated without local matplotlib setup
+- **⚡ Fast Feedback**: Quality checks complete in ~30 seconds
 
 ## Technical Details
 
