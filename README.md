@@ -9,28 +9,40 @@ This repository contains identical Short-Time Fourier Transform (STFT) implement
 - `src/lib.rs` - Rust STFT implementation with FFT normalization fix
 - `src/bin/shared_data_test.rs` - Rust test binary for pipeline verification
 
-### Pipeline Comparison
-- `run_full_comparison.py` - **Unified script** for complete comparison pipeline
-- `generate_pipeline_comparison.py` - Alternative pipeline comparison script
+### Docker Infrastructure
+- `Dockerfile.rust` - Rust STFT implementation container
+- `Dockerfile.python` - Python STFT implementation and plotting container  
+- `docker-compose.yml` - Container orchestration
+- `run_docker_comparison.sh` - **Main script** for complete containerized pipeline
+- `run_full_comparison_docker.py` - Docker-optimized Python processing script
 
 ## Usage
 
-### Complete Comparison Pipeline (Recommended)
+### Complete Containerized Pipeline (Recommended)
 
 ```bash
-# Single command runs everything: Rust + Python + Plotting + Report
-python run_full_comparison.py
+# Single command runs everything in Docker containers
+./run_docker_comparison.sh
 ```
 
-### Manual Pipeline (Alternative)
+This script:
+1. **Builds** both Rust and Python Docker images
+2. **Runs Rust container** to generate STFT results  
+3. **Runs Python container** to create plots and reports
+4. **Generates** all comparison files in `comparison_results/`
+
+### Manual Docker Pipeline (Alternative)
 
 ```bash
-# 1. Build and run Rust test
-cargo build --release --bin shared_data_test
-./target/release/shared_data_test
+# 1. Build images
+docker build -f Dockerfile.rust -t spectrust-rust .
+docker build -f Dockerfile.python -t spectrust-python .
 
-# 2. Generate comparison plots
-python generate_pipeline_comparison.py
+# 2. Run Rust container
+docker run --rm -v $(pwd)/comparison_results:/workspace/comparison_results spectrust-rust
+
+# 3. Run Python container  
+docker run --rm -v $(pwd)/comparison_results:/workspace/comparison_results spectrust-python
 ```
 
 ### Generated Files
@@ -74,9 +86,18 @@ python generate_pipeline_comparison.py
 
 **Perfect 1:1 Accuracy**: Both implementations produce mathematically identical results at machine precision level, confirming complete correctness of the Rust STFT implementation.
 
+## Docker Benefits
+
+- **🔒 Reproducible Environment**: Identical results across different systems
+- **📦 Zero Setup**: No need to install Rust, Python dependencies, or manage versions
+- **🚀 One Command**: Complete pipeline runs with `./run_docker_comparison.sh`
+- **🔄 Isolated Execution**: Rust and Python run in separate, clean containers
+- **📊 Automatic Plotting**: All visualizations generated without local matplotlib setup
+
 ## Technical Details
 
 - **Fixed Seed**: All test signals use seed=42 for reproducible results
-- **Shared Data**: JSON ensures bit-exact data transfer between implementations
+- **Shared Data**: JSON ensures bit-exact data transfer between containers
 - **Complete Pipeline**: Tests entire workflow from input signal to final reconstruction
 - **Machine Precision**: All errors at 1e-17 level (6 orders better than required)
+- **Containerized**: Both implementations run in isolated Docker environments
