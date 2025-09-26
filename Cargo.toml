@@ -16,3 +16,7 @@ path = "src/bin/stft_test.rs"
 [[bin]]
 name = "comprehensive_test"
 path = "src/bin/comprehensive_test.rs"
+
+[[bin]]
+name = "simple_debug"
+path = "src/bin/simple_debug.rs"

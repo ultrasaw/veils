@@ -86,9 +86,18 @@ fn test_signal(signal_name: &str, test_data: &TestSignal) -> Result<ComparisonRe
     // Perform Rust STFT
     let rust_stft = stft.stft(&test_data.signal, None, None, None)?;
     
-    // Perform Rust ISTFT
+    // Convert Rust STFT to Python format for ISTFT
+    // Rust STFT is [time][freq], Python expects [freq][time]
+    let mut rust_stft_python_format = vec![vec![Complex::new(0.0, 0.0); rust_stft.len()]; rust_stft[0].len()];
+    for t in 0..rust_stft.len() {
+        for f in 0..rust_stft[0].len() {
+            rust_stft_python_format[f][t] = rust_stft[t][f];
+        }
+    }
+    
+    // Perform Rust ISTFT with correct format
     let mut stft_mut = stft;
-    let rust_reconstructed = stft_mut.istft(&rust_stft, None, None)?;
+    let rust_reconstructed = stft_mut.istft(&rust_stft_python_format, None, None)?;
     
     // Calculate Rust reconstruction error
     let min_len = test_data.signal.len().min(rust_reconstructed.len());
@@ -103,18 +112,18 @@ fn test_signal(signal_name: &str, test_data: &TestSignal) -> Result<ComparisonRe
     let rust_abs_error = rust_error_sum / min_len as f64;
     let rust_rel_error = rust_abs_error / (signal_sum / min_len as f64);
     
-    // Convert Python STFT format for cross-check
-    let mut python_stft_transposed = Vec::new();
-    for t in 0..test_data.stft_real[0].len() {
-        let mut time_slice = Vec::new();
-        for f in 0..test_data.stft_real.len() {
-            time_slice.push(Complex::new(test_data.stft_real[f][t], test_data.stft_imag[f][t]));
+    // Python STFT is already in [freq][time] format, convert to Vec<Vec<Complex<f64>>>
+    let mut python_stft_native = Vec::new();
+    for f in 0..test_data.stft_real.len() {
+        let mut freq_slice = Vec::new();
+        for t in 0..test_data.stft_real[0].len() {
+            freq_slice.push(Complex::new(test_data.stft_real[f][t], test_data.stft_imag[f][t]));
         }
-        python_stft_transposed.push(time_slice);
+        python_stft_native.push(freq_slice);
     }
     
     // Cross-check: Rust ISTFT with Python STFT data
-    let cross_check_reconstructed = stft_mut.istft(&python_stft_transposed, None, None)?;
+    let cross_check_reconstructed = stft_mut.istft(&python_stft_native, None, None)?;
     let mut cross_check_error_sum = 0.0;
     let cross_check_len = test_data.reconstructed.len().min(cross_check_reconstructed.len());
     

@@ -124,16 +124,16 @@ impl StandaloneSTFT {
         self.phase_shift
     }
 
-    pub fn t(&self) -> f64 {
+    pub fn sampling_period(&self) -> f64 {
         1.0 / self.fs
     }
 
     pub fn delta_t(&self) -> f64 {
-        self.hop as f64 * self.t()
+        self.hop as f64 * self.sampling_period()
     }
 
     pub fn delta_f(&self) -> f64 {
-        1.0 / (self.mfft as f64 * self.t())
+        1.0 / (self.mfft as f64 * self.sampling_period())
     }
 
     pub fn m_num(&self) -> usize {
@@ -342,6 +342,13 @@ impl StandaloneSTFT {
             }
         }
 
+        // CRITICAL FIX: Apply scipy-compatible normalization
+        // RustFFT doesn't normalize by default, but scipy applies 1/N normalization on IFFT
+        let normalization_factor = 1.0 / (self.mfft as f64);
+        for val in &mut x {
+            *val *= normalization_factor;
+        }
+
         // Handle phase shift
         if self.phase_shift != 0 {
             let p_s = ((self.phase_shift + self.m_num_mid() as i32) % self.m_num() as i32) as usize;
@@ -504,7 +511,7 @@ impl StandaloneSTFT {
         let slices = self.x_slices(x, k_offset, p0, p1);
         let mut stft_result = Vec::new();
         
-        for (slice_idx, slice) in slices.iter().enumerate() {
+        for (_slice_idx, slice) in slices.iter().enumerate() {
             // Apply window and compute FFT
             let windowed: Vec<Complex<f64>> = slice.iter()
                 .zip(self.win.iter())
@@ -528,23 +535,27 @@ impl StandaloneSTFT {
     }
 
     /// Inverse short-time Fourier transform
+    /// CRITICAL FIX: This now expects stft_data in Python format: [frequency_bins][time_slices]
     pub fn istft(&mut self, stft_data: &[Vec<Complex<f64>>], k0: Option<i32>, k1: Option<i32>) -> Result<Vec<f64>, String> {
         if stft_data.is_empty() {
             return Err("STFT data cannot be empty".to_string());
         }
 
+        // CRITICAL: stft_data is in Python format [freq][time], we need to check dimensions correctly
         let f_pts_expected = self.f_pts();
-        if stft_data[0].len() != f_pts_expected {
-            return Err(format!("STFT frequency dimension {} must equal {}", stft_data[0].len(), f_pts_expected));
+        let time_slices = stft_data[0].len();
+        
+        if stft_data.len() != f_pts_expected {
+            return Err(format!("STFT frequency dimension {} must equal {}", stft_data.len(), f_pts_expected));
         }
 
         let n_min = self.m_num() - self.m_num_mid();
         let q_num = self.p_max(n_min) - self.p_min();
-        if (stft_data.len() as i32) < q_num {
-            return Err(format!("STFT time dimension {} needs to have at least {} slices", stft_data.len(), q_num));
+        if (time_slices as i32) < q_num {
+            return Err(format!("STFT time dimension {} needs to have at least {} slices", time_slices, q_num));
         }
 
-        let q_max = stft_data.len() as i32 + self.p_min();
+        let q_max = time_slices as i32 + self.p_min();
         let k_max = (q_max - 1) * self.hop as i32 + self.m_num() as i32 - self.m_num_mid() as i32;
 
         let k0 = k0.unwrap_or(0);
@@ -559,53 +570,99 @@ impl StandaloneSTFT {
             return Err(format!("Output length {} has to be at least {}", num_pts, n_min));
         }
 
-        let q0 = if k0 >= 0 { k0 / self.hop as i32 + self.p_min() } else { k0 / self.hop as i32 };
+        // Match Python's q0 calculation exactly
+        let q0 = if k0 >= 0 { 
+            k0 / self.hop as i32 + self.p_min() 
+        } else { 
+            k0 / self.hop as i32 
+        };
         let q1 = (self.p_max(k1 as usize)).min(q_max);
 
         let dual_win = self.dual_win()?.to_vec();
         let mut x = vec![0.0f64; num_pts];
 
+        // CRITICAL FIX: Match Python's ISTFT logic exactly
         for q in q0..q1 {
             let stft_idx = q - self.p_min();
-            if stft_idx < 0 || stft_idx >= stft_data.len() as i32 {
+            if stft_idx < 0 || stft_idx >= time_slices as i32 {
                 continue; // No more STFT data available
             }
 
-            let xs = self.ifft_func(stft_data[stft_idx as usize].clone());
+            // CRITICAL: Extract frequency slice like Python: S[:, q_ - self.p_min]
+            let mut stft_slice = vec![Complex::new(0.0, 0.0); f_pts_expected];
+            for f in 0..f_pts_expected {
+                stft_slice[f] = stft_data[f][stft_idx as usize];
+            }
             
-            // Apply dual window
-            let windowed: Vec<Complex<f64>> = xs.iter()
+            // Apply IFFT to get time domain signal
+            let xs_raw = self.ifft_func(stft_slice);
+            
+            // Apply dual window (Python: xs = self._ifft_func(S[:, q_ - self.p_min]) * self.dual_win)
+            let xs: Vec<Complex<f64>> = xs_raw.iter()
                 .zip(dual_win.iter())
                 .map(|(x, w)| x * w)
                 .collect();
 
+            // Calculate indices exactly like Python
             let i0 = q * self.hop as i32 - self.m_num_mid() as i32;
             let i1 = (i0 + self.m_num() as i32).min(num_pts as i32 + k0);
-            let mut j0 = 0;
+            let mut j0 = 0i32;
             let mut j1 = i1 - i0;
 
             let mut actual_i0 = i0;
-            if i0 < k0 {
+            if i0 < k0 {  // xs sticks out to the left on x
                 j0 += k0 - i0;
                 actual_i0 = k0;
             }
 
-            if i1 > k0 + num_pts as i32 {
+            if i1 > k0 + num_pts as i32 {  // xs sticks out to the right
                 j1 -= i1 - k0 - num_pts as i32;
             }
 
+            // Apply overlap-add exactly like Python
             if actual_i0 < i1 && j0 < j1 {
-                let start_idx = (actual_i0 - k0) as usize;
-                let end_idx = start_idx + (j1 - j0) as usize;
+                let target_start = (actual_i0 - k0) as usize;
+                let target_end = target_start + (j1 - j0) as usize;
+                let source_start = j0 as usize;
+                let source_end = j1 as usize;
                 
-                for (i, &val) in windowed[j0 as usize..j1 as usize].iter().enumerate() {
-                    if start_idx + i < x.len() {
-                        x[start_idx + i] += if self.onesided_fft() { val.re } else { val.re };
+                for (i, &val) in xs[source_start..source_end].iter().enumerate() {
+                    if target_start + i < x.len() {
+                        // Python: x[i0-k0:i1-k0] += xs[j0:j1].real if self.onesided_fft else xs[j0:j1]
+                        if self.onesided_fft() {
+                            x[target_start + i] += val.re;
+                        } else {
+                            x[target_start + i] += val.re; // For complex case, should be val itself, but we're returning f64
+                        }
                     }
                 }
             }
         }
 
         Ok(x)
+    }
+
+    pub fn t(&self, n: usize, p0: Option<i32>, p1: Option<i32>, 
+          k_offset: Option<i32>) -> Result<Vec<f64>, String> {
+        let (p0, p1) = self.p_range(n, p0, p1)?;
+        let k_offset = k_offset.unwrap_or(0);
+        Ok((p0..p1).map(|p| (p * self.hop as i32 + k_offset) as f64 * self.sampling_period()).collect())
+    }
+
+    pub fn f(&self) -> Vec<f64> {
+        let freqs: Vec<f64> = if self.fft_mode.is_onesided() {
+            (0..self.f_pts()).map(|i| i as f64 / (self.mfft as f64 * self.sampling_period())).collect()
+        } else {
+            (0..self.mfft).map(|i| {
+                let freq = i as f64 / (self.mfft as f64 * self.sampling_period());
+                if i > self.mfft / 2 {
+                    freq - 1.0 / self.sampling_period()
+                } else {
+                    freq
+                }
+            }).collect()
+        };
+        
+        freqs
     }
 }
