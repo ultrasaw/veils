@@ -1,7 +1,25 @@
 [package]
-name = "spectrust"
+name = "spectrust-stft"
 version = "0.1.0"
 edition = "2021"
+authors = ["Your Name <your.email@example.com>"]
+description = "A high-performance Short-Time Fourier Transform (STFT) library with perfect Python scipy compatibility"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/yourusername/spectrust"
+homepage = "https://github.com/yourusername/spectrust"
+documentation = "https://docs.rs/spectrust"
+keywords = ["fft", "stft", "signal-processing", "audio", "scipy"]
+categories = ["algorithms", "multimedia::audio", "science"]
+readme = "README.md"
+exclude = [
+    "comparison_results/*",
+    "docker/*",
+    "*.sh",
+    "*.py",
+    "venv/*",
+    "target/*",
+    "src/bin/*"
+]
 
 [dependencies]
 rustfft = "6.4"
@@ -9,18 +27,3 @@ num-complex = "0.4"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
-[[bin]]
-name = "stft_test"
-path = "src/bin/stft_test.rs"
-
-[[bin]]
-name = "comprehensive_test"
-path = "src/bin/comprehensive_test.rs"
-
-[[bin]]
-name = "simple_debug"
-path = "src/bin/simple_debug.rs"
-
-[[bin]]
-name = "shared_data_test"
-path = "src/bin/shared_data_test.rs"
