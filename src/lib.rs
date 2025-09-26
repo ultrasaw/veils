@@ -1,4 +1,4 @@
-//! # SpectRust: High-Performance STFT Library
+"""//! # SpectRust: High-Performance STFT Library
 //!
 //! SpectRust provides a high-performance Short-Time Fourier Transform (STFT) implementation
 //! with perfect compatibility to Python's scipy.signal.ShortTimeFFT.
@@ -14,7 +14,7 @@
 //! ## Quick Start
 //!
 //! ```rust
-//! use spectrust_stft::StandaloneSTFT;
+//! use spectrust::StandaloneSTFT;
 //!
 //! // Create a Hann window
 //! let window: Vec<f64> = (0..16)
@@ -44,6 +44,7 @@
 
 use num_complex::Complex;
 use rustfft::{Fft, FftPlanner};
+use std::str::FromStr;
 use std::sync::Arc;
 
 /// FFT mode for STFT computation
@@ -61,8 +62,10 @@ pub enum FftMode {
     OneSided2X,
 }
 
-impl FftMode {
-    pub fn from_str(s: &str) -> Result<Self, String> {
+impl FromStr for FftMode {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "twosided" => Ok(FftMode::TwoSided),
             "centered" => Ok(FftMode::Centered),
@@ -71,7 +74,9 @@ impl FftMode {
             _ => Err(format!("Unknown fft_mode: {}", s)),
         }
     }
+}
 
+impl FftMode {
     pub fn is_onesided(&self) -> bool {
         matches!(self, FftMode::OneSided | FftMode::OneSided2X)
     }
@@ -85,7 +90,7 @@ impl FftMode {
 /// # Examples
 ///
 /// ```rust
-/// use spectrust_stft::StandaloneSTFT;
+/// use spectrust::StandaloneSTFT;
 ///
 /// // Create a simple Hann window
 /// let window: Vec<f64> = (0..16)
@@ -183,7 +188,7 @@ impl StandaloneSTFT {
         let win_complex: Vec<Complex<f64>> =
             win.into_iter().map(|x| Complex::new(x, 0.0)).collect();
 
-        let fft_mode = FftMode::from_str(fft_mode.unwrap_or("onesided"))?;
+        let fft_mode = fft_mode.unwrap_or("onesided").parse()?;
         let mfft = mfft.unwrap_or(win_complex.len());
         let phase_shift = phase_shift.unwrap_or(0);
 
@@ -374,7 +379,7 @@ impl StandaloneSTFT {
                 if n_out > 0 {
                     x[0] = Complex::new(x[0].re, 0.0); // DC component
                 }
-                if self.mfft % 2 == 0 && n_out > 1 {
+                if self.mfft.is_multiple_of(2) && n_out > 1 {
                     x[n_out - 1] = Complex::new(x[n_out - 1].re, 0.0); // Nyquist component
                 }
                 x
@@ -389,14 +394,14 @@ impl StandaloneSTFT {
 
                 // Apply scaling (factor of 2 for unpaired frequencies)
                 let fac = 2.0; // Assuming no PSD scaling for now
-                if self.mfft % 2 == 0 {
+                if self.mfft.is_multiple_of(2) {
                     // For even input length, the last entry is unpaired
-                    for i in 1..(x.len() - 1) {
-                        x[i] *= fac;
+                    for x_i in x.iter_mut().skip(1).take(x.len() - 2) {
+                        *x_i *= fac;
                     }
                 } else {
-                    for i in 1..x.len() {
-                        x[i] *= fac;
+                    for x_i in x.iter_mut().skip(1) {
+                        *x_i *= fac;
                     }
                 }
                 x
@@ -439,13 +444,13 @@ impl StandaloneSTFT {
                 let mut xc = x.clone();
                 let fac = 2.0;
 
-                if self.mfft % 2 == 0 {
-                    for i in 1..(xc.len() - 1) {
-                        xc[i] /= fac;
+                if self.mfft.is_multiple_of(2) {
+                    for xc_i in xc.iter_mut().skip(1).take(xc.len() - 2) {
+                        *xc_i /= fac;
                     }
                 } else {
-                    for i in 1..xc.len() {
-                        xc[i] /= fac;
+                    for xc_i in xc.iter_mut().skip(1) {
+                        *xc_i /= fac;
                     }
                 }
 
@@ -485,7 +490,7 @@ impl StandaloneSTFT {
     /// FFT shift implementation
     fn fftshift(&self, mut x: Vec<Complex<f64>>) -> Vec<Complex<f64>> {
         let n = x.len();
-        let mid = (n + 1) / 2;
+        let mid = n.div_ceil(2);
         x.rotate_left(mid);
         x
     }
@@ -512,17 +517,18 @@ impl StandaloneSTFT {
                 return (n, -p);
             }
             // Check if n_next is valid and all w2[n_next:] == 0
-            if n_next >= 0 && (n_next as usize) < w2.len() {
-                if w2[(n_next as usize)..].iter().all(|&x| x == 0.0) {
-                    return (n, -p);
-                }
+            if n_next >= 0
+                && (n_next as usize) < w2.len()
+                && w2[(n_next as usize)..].iter().all(|&x| x == 0.0)
+            {
+                return (n, -p);
             }
 
             n = n_next;
             p += 1;
 
             // Break condition to match Python range
-            if n <= n0 - self.m_num() as i32 - 1 {
+            if n < n0 - self.m_num() as i32 {
                 break;
             }
         }
@@ -550,10 +556,7 @@ impl StandaloneSTFT {
         {
             let q = q1 + q_offset;
             let n_next = k + self.hop as i32;
-            if n_next >= n as i32
-                || (n_next < n as i32
-                    && w2[..(n as i32 - n_next) as usize].iter().all(|&x| x == 0.0))
-            {
+            if n_next >= n as i32 || w2[..(n as i32 - n_next) as usize].iter().all(|&x| x == 0.0) {
                 return (k + self.m_num() as i32, q as i32 + 1);
             }
         }
@@ -639,7 +642,7 @@ impl StandaloneSTFT {
     ///
     /// * `x` - Input signal as a slice of f64 values
     /// * `p0` - Start index for STFT computation (None for automatic)
-    /// * `p1` - End index for STFT computation (None for automatic)  
+    /// * `p1` - End index for STFT computation (None for automatic)
     /// * `k_offset` - Sample offset for time axis (default: 0)
     ///
     /// # Returns
@@ -673,7 +676,7 @@ impl StandaloneSTFT {
         p1: Option<i32>,
         k_offset: Option<i32>,
     ) -> Result<Vec<Vec<Complex<f64>>>, String> {
-        if self.onesided_fft() && x.iter().any(|&val| val != val) {
+        if self.onesided_fft() && x.iter().any(|&val| val.is_nan()) {
             return Err("Complex-valued input not allowed for one-sided FFT modes".to_string());
         }
 
@@ -692,7 +695,7 @@ impl StandaloneSTFT {
         let slices = self.x_slices(x, k_offset, p0, p1);
         let mut stft_result = Vec::new();
 
-        for (_slice_idx, slice) in slices.iter().enumerate() {
+        for slice in slices.iter() {
             // Apply window and compute FFT
             let windowed: Vec<Complex<f64>> = slice
                 .iter()
@@ -916,3 +919,4 @@ impl StandaloneSTFT {
         freqs
     }
 }
+""
