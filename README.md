@@ -10,32 +10,43 @@ This repository contains identical Short-Time Fourier Transform (STFT) implement
 - `src/bin/shared_data_test.rs` - Rust test binary for pipeline verification
 
 ### Pipeline Comparison
-- `generate_separated_plots.py` - **Main script** to generate clean, separated comparison plots
+- `run_full_comparison.py` - **Unified script** for complete comparison pipeline
+- `generate_pipeline_comparison.py` - Alternative pipeline comparison script
 
 ## Usage
 
-### Generate Separated Pipeline Comparison
+### Complete Comparison Pipeline (Recommended)
 
 ```bash
-# 1. First, run the Rust test to generate shared data
+# Single command runs everything: Rust + Python + Plotting + Report
+python run_full_comparison.py
+```
+
+### Manual Pipeline (Alternative)
+
+```bash
+# 1. Build and run Rust test
 cargo build --release --bin shared_data_test
 ./target/release/shared_data_test
 
-# 2. Generate all separated comparison plots
-python generate_separated_plots.py
+# 2. Generate comparison plots
+python generate_pipeline_comparison.py
 ```
 
-This generates **6 clean, focused plots**:
+### Generated Files
 
 **Pipeline Comparisons** (Input → Reconstruction):
-- `impulse_pipeline_comparison.png` - Clean impulse signal comparison
-- `sine_wave_pipeline_comparison.png` - Clean sine wave comparison  
-- `chirp_pipeline_comparison.png` - Clean chirp signal comparison
+- `impulse_pipeline_comparison.png` - Complete impulse signal pipeline
+- `sine_wave_pipeline_comparison.png` - Complete sine wave pipeline  
+- `chirp_pipeline_comparison.png` - Complete chirp signal pipeline
 
 **Spectrogram Analysis** (Frequency-Time Details):
 - `impulse_spectrogram_analysis.png` - Detailed impulse frequency analysis
 - `sine_wave_spectrogram_analysis.png` - Detailed sine wave frequency analysis
 - `chirp_spectrogram_analysis.png` - Detailed chirp frequency analysis
+
+**Summary Report**:
+- `full_comparison_report.txt` - Comprehensive methodology and results summary
 
 ### What Each Plot Shows
 
