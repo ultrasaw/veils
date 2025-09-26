@@ -38,7 +38,7 @@ This repository contains identical Short-Time Fourier Transform (STFT) implement
 ### Local Development Testing
 
 ```bash
-# Quick quality check (matches CI fast-fail)
+# Quick quality check (matches CI code-quality job)
 ./run_code_quality_checks.sh
 
 # Full test suite (matches CI comprehensive testing)  
