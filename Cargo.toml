@@ -12,3 +12,7 @@ serde_json = "1.0"
 [[bin]]
 name = "stft_test"
 path = "src/bin/stft_test.rs"
+
+[[bin]]
+name = "comprehensive_test"
+path = "src/bin/comprehensive_test.rs"
