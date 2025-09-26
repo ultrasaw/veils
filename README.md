@@ -10,7 +10,7 @@ This repository contains identical Short-Time Fourier Transform (STFT) implement
 - `src/bin/shared_data_test.rs` - Rust test binary for pipeline verification
 
 ### Test Scripts (Local Development)
-- `run_code_quality_checks.sh` - **Fast quality checks** (formatting + clippy) → matches CI `test` job
+- `run_code_quality_checks.sh` - **Fast quality checks** (formatting + clippy) → matches CI `code-quality` job
 - `run_comprehensive_tests.sh` - **Full test suite** (build + tests + docs) → matches CI `comprehensive-test` job  
 - `run_crate_tests.sh` - **Publishing readiness** (clean env + publish dry-run) → matches CI `publish-check` job
 - `run_docker_comparison.sh` - **Python vs Rust comparison** (complete containerized pipeline)
@@ -26,7 +26,7 @@ This repository contains identical Short-Time Fourier Transform (STFT) implement
 
 | Local Script | CI Job | Purpose | Speed |
 |-------------|---------|---------|-------|
-| `./run_code_quality_checks.sh` | `test` | Format + lint checks | ⚡ **Fast** (30s) |
+| `./run_code_quality_checks.sh` | `code-quality` | Format + lint checks | ⚡ **Fast** (30s) |
 | `./run_comprehensive_tests.sh` | `comprehensive-test` | Build + all tests + docs | 🔄 **Medium** (2-3min) |
 | `./run_crate_tests.sh` | `publish-check` | Clean env + publish dry-run | 🐌 **Slow** (5-10min) |
 | `./run_docker_comparison.sh` | `sanity-check` | Python vs Rust verification | 🐌 **Slow** (varies) |
