@@ -170,18 +170,19 @@ impl StandaloneSTFT {
         if win.is_empty() {
             return Err("Parameter win must be non-empty!".to_string());
         }
-        
+
         if !win.iter().all(|&x| x.is_finite()) {
             return Err("Parameter win must have finite entries!".to_string());
         }
-        
+
         if hop < 1 {
             return Err(format!("Parameter hop={} is not >= 1!", hop));
         }
 
         // Convert window to complex
-        let win_complex: Vec<Complex<f64>> = win.into_iter().map(|x| Complex::new(x, 0.0)).collect();
-        
+        let win_complex: Vec<Complex<f64>> =
+            win.into_iter().map(|x| Complex::new(x, 0.0)).collect();
+
         let fft_mode = FftMode::from_str(fft_mode.unwrap_or("onesided"))?;
         let mfft = mfft.unwrap_or(win_complex.len());
         let phase_shift = phase_shift.unwrap_or(0);
@@ -277,9 +278,13 @@ impl StandaloneSTFT {
     fn calc_dual_canonical_window(&self) -> Result<Vec<Complex<f64>>, String> {
         let win = &self.win;
         let hop = self.hop;
-        
+
         if hop > win.len() {
-            return Err(format!("hop={} is larger than window length of {} => STFT not invertible!", hop, win.len()));
+            return Err(format!(
+                "hop={} is larger than window length of {} => STFT not invertible!",
+                hop,
+                win.len()
+            ));
         }
 
         // w2 = win.real**2 + win.imag**2
@@ -301,7 +306,7 @@ impl StandaloneSTFT {
         // Check DD > 0 (using relative resolution)
         let max_dd = dd.iter().fold(0.0f64, |a, &b| a.max(b));
         let relative_resolution = f64::EPSILON * max_dd;
-        
+
         if !dd.iter().all(|&x| x >= relative_resolution) {
             return Err("Short-time Fourier Transform not invertible!".to_string());
         }
@@ -363,7 +368,7 @@ impl StandaloneSTFT {
                 }
                 let n_out = self.mfft / 2 + 1;
                 x.truncate(n_out);
-                
+
                 // For real input signals, the result should have conjugate symmetry
                 // The DC and Nyquist components should be real
                 if n_out > 0 {
@@ -381,7 +386,7 @@ impl StandaloneSTFT {
                 }
                 let n_out = self.mfft / 2 + 1;
                 x.truncate(n_out);
-                
+
                 // Apply scaling (factor of 2 for unpaired frequencies)
                 let fac = 2.0; // Assuming no PSD scaling for now
                 if self.mfft % 2 == 0 {
@@ -418,12 +423,12 @@ impl StandaloneSTFT {
                 // Reconstruct full spectrum from one-sided
                 let mut full_x = vec![Complex::new(0.0, 0.0); self.mfft];
                 full_x[..x.len()].copy_from_slice(&x);
-                
+
                 // Mirror the spectrum (conjugate symmetry)
                 for i in 1..(self.mfft / 2) {
                     full_x[self.mfft - i] = x[i].conj();
                 }
-                
+
                 if let Some(ref ifft) = self.inverse_fft {
                     ifft.process(&mut full_x);
                 }
@@ -433,7 +438,7 @@ impl StandaloneSTFT {
                 // Undo scaling first
                 let mut xc = x.clone();
                 let fac = 2.0;
-                
+
                 if self.mfft % 2 == 0 {
                     for i in 1..(xc.len() - 1) {
                         xc[i] /= fac;
@@ -443,15 +448,15 @@ impl StandaloneSTFT {
                         xc[i] /= fac;
                     }
                 }
-                
+
                 // Reconstruct full spectrum
                 let mut full_x = vec![Complex::new(0.0, 0.0); self.mfft];
                 full_x[..xc.len()].copy_from_slice(&xc);
-                
+
                 for i in 1..(self.mfft / 2) {
                     full_x[self.mfft - i] = xc[i].conj();
                 }
-                
+
                 if let Some(ref ifft) = self.inverse_fft {
                     ifft.process(&mut full_x);
                 }
@@ -497,7 +502,7 @@ impl StandaloneSTFT {
     fn pre_padding(&self) -> (i32, i32) {
         let w2: Vec<f64> = self.win.iter().map(|w| w.norm_sqr()).collect();
         let n0 = -(self.m_num_mid() as i32);
-        
+
         // Python: for p_, n_ in enumerate(range(n0, n0-self.m_num-1, -self.hop)):
         let mut p = 0;
         let mut n = n0;
@@ -512,18 +517,21 @@ impl StandaloneSTFT {
                     return (n, -p);
                 }
             }
-            
+
             n = n_next;
             p += 1;
-            
+
             // Break condition to match Python range
             if n <= n0 - self.m_num() as i32 - 1 {
                 break;
             }
         }
-        
+
         // Fallback
-        (n0 - self.m_num() as i32, -((self.m_num() / self.hop + 1) as i32))
+        (
+            n0 - self.m_num() as i32,
+            -((self.m_num() / self.hop + 1) as i32),
+        )
     }
 
     fn post_padding(&self, n: usize) -> (i32, i32) {
@@ -535,17 +543,25 @@ impl StandaloneSTFT {
         let w2: Vec<f64> = self.win.iter().map(|w| w.norm_sqr()).collect();
         let q1 = n / self.hop;
         let k1 = q1 as i32 * self.hop as i32 - self.m_num_mid() as i32;
-        
-        for (q_offset, k) in (k1..(n as i32 + self.m_num() as i32)).step_by(self.hop).enumerate() {
+
+        for (q_offset, k) in (k1..(n as i32 + self.m_num() as i32))
+            .step_by(self.hop)
+            .enumerate()
+        {
             let q = q1 + q_offset;
             let n_next = k + self.hop as i32;
-            if n_next >= n as i32 || 
-               (n_next < n as i32 && w2[..(n as i32 - n_next) as usize].iter().all(|&x| x == 0.0)) {
+            if n_next >= n as i32
+                || (n_next < n as i32
+                    && w2[..(n as i32 - n_next) as usize].iter().all(|&x| x == 0.0))
+            {
                 return (k + self.m_num() as i32, q as i32 + 1);
             }
         }
         // Fallback
-        (n as i32 + self.m_num() as i32, ((n + self.m_num_mid()) / self.hop + 1) as i32)
+        (
+            n as i32 + self.m_num() as i32,
+            ((n + self.m_num_mid()) / self.hop + 1) as i32,
+        )
     }
 
     pub fn p_min(&self) -> i32 {
@@ -556,14 +572,19 @@ impl StandaloneSTFT {
         self.post_padding(n).1
     }
 
-    pub fn p_range(&self, n: usize, p0: Option<i32>, p1: Option<i32>) -> Result<(i32, i32), String> {
+    pub fn p_range(
+        &self,
+        n: usize,
+        p0: Option<i32>,
+        p1: Option<i32>,
+    ) -> Result<(i32, i32), String> {
         let p0 = p0.unwrap_or(self.p_min());
         let p1 = p1.unwrap_or(self.p_max(n));
-        
+
         if !(self.p_min() <= p0 && p0 < p1) {
             return Err(format!("Invalid slice range: p0={}, p1={}", p0, p1));
         }
-        
+
         Ok((p0, p1))
     }
 
@@ -571,14 +592,14 @@ impl StandaloneSTFT {
     fn x_slices(&self, x: &[f64], k_offset: i32, p0: i32, p1: i32) -> Vec<Vec<Complex<f64>>> {
         let n = x.len();
         let mut slices = Vec::new();
-        
+
         for p in p0..p1 {
             let k_center = p * self.hop as i32 + k_offset;
             let k_start = k_center - self.m_num_mid() as i32;
             let k_end = k_start + self.m_num() as i32;
-            
+
             let mut slice_data = vec![Complex::new(0.0, 0.0); self.m_num()];
-            
+
             // Extract slice with padding if necessary
             if k_start >= 0 && k_end <= n as i32 {
                 // No padding needed
@@ -591,22 +612,22 @@ impl StandaloneSTFT {
                 // Padding needed - using zeros padding for now
                 let valid_start = 0.max(k_start);
                 let valid_end = (n as i32).min(k_end);
-                
+
                 if valid_start < valid_end {
                     let slice_start = valid_start - k_start;
                     let valid_start_idx = valid_start as usize;
                     let valid_end_idx = valid_end as usize;
                     let slice_start_idx = slice_start as usize;
-                    
+
                     for (i, &val) in x[valid_start_idx..valid_end_idx].iter().enumerate() {
                         slice_data[slice_start_idx + i] = Complex::new(val, 0.0);
                     }
                 }
             }
-            
+
             slices.push(slice_data);
         }
-        
+
         slices
     }
 
@@ -642,10 +663,16 @@ impl StandaloneSTFT {
     ///     .collect();
     ///
     /// let stft_result = stft.stft(&signal, None, None, None).unwrap();
-    /// println!("STFT computed: {} time slices, {} frequency bins", 
+    /// println!("STFT computed: {} time slices, {} frequency bins",
     ///          stft_result.len(), stft_result[0].len());
     /// ```
-    pub fn stft(&self, x: &[f64], p0: Option<i32>, p1: Option<i32>, k_offset: Option<i32>) -> Result<Vec<Vec<Complex<f64>>>, String> {
+    pub fn stft(
+        &self,
+        x: &[f64],
+        p0: Option<i32>,
+        p1: Option<i32>,
+        k_offset: Option<i32>,
+    ) -> Result<Vec<Vec<Complex<f64>>>, String> {
         if self.onesided_fft() && x.iter().any(|&val| val != val) {
             return Err("Complex-valued input not allowed for one-sided FFT modes".to_string());
         }
@@ -653,18 +680,22 @@ impl StandaloneSTFT {
         let n = x.len();
         let m2p = self.m_num() - self.m_num_mid();
         if n < m2p {
-            return Err(format!("Input length {} must be >= ceil(m_num/2) = {}", n, m2p));
+            return Err(format!(
+                "Input length {} must be >= ceil(m_num/2) = {}",
+                n, m2p
+            ));
         }
 
         let (p0, p1) = self.p_range(n, p0, p1)?;
         let k_offset = k_offset.unwrap_or(0);
-        
+
         let slices = self.x_slices(x, k_offset, p0, p1);
         let mut stft_result = Vec::new();
-        
+
         for (_slice_idx, slice) in slices.iter().enumerate() {
             // Apply window and compute FFT
-            let windowed: Vec<Complex<f64>> = slice.iter()
+            let windowed: Vec<Complex<f64>> = slice
+                .iter()
                 .zip(self.win.iter())
                 .map(|(x, w)| {
                     let result = x * w.conj();
@@ -676,12 +707,12 @@ impl StandaloneSTFT {
                     }
                 })
                 .collect();
-            
+
             let fft_result = self.fft_func(windowed);
-            
+
             stft_result.push(fft_result);
         }
-        
+
         Ok(stft_result)
     }
 
@@ -726,7 +757,12 @@ impl StandaloneSTFT {
     ///     .fold(0.0, f64::max);
     /// assert!(error < 1e-10);
     /// ```
-    pub fn istft(&mut self, stft_data: &[Vec<Complex<f64>>], k0: Option<i32>, k1: Option<i32>) -> Result<Vec<f64>, String> {
+    pub fn istft(
+        &mut self,
+        stft_data: &[Vec<Complex<f64>>],
+        k0: Option<i32>,
+        k1: Option<i32>,
+    ) -> Result<Vec<f64>, String> {
         if stft_data.is_empty() {
             return Err("STFT data cannot be empty".to_string());
         }
@@ -734,15 +770,22 @@ impl StandaloneSTFT {
         // CRITICAL: stft_data is in Python format [freq][time], we need to check dimensions correctly
         let f_pts_expected = self.f_pts();
         let time_slices = stft_data[0].len();
-        
+
         if stft_data.len() != f_pts_expected {
-            return Err(format!("STFT frequency dimension {} must equal {}", stft_data.len(), f_pts_expected));
+            return Err(format!(
+                "STFT frequency dimension {} must equal {}",
+                stft_data.len(),
+                f_pts_expected
+            ));
         }
 
         let n_min = self.m_num() - self.m_num_mid();
         let q_num = self.p_max(n_min) - self.p_min();
         if (time_slices as i32) < q_num {
-            return Err(format!("STFT time dimension {} needs to have at least {} slices", time_slices, q_num));
+            return Err(format!(
+                "STFT time dimension {} needs to have at least {} slices",
+                time_slices, q_num
+            ));
         }
 
         let q_max = time_slices as i32 + self.p_min();
@@ -757,14 +800,17 @@ impl StandaloneSTFT {
 
         let num_pts = (k1 - k0) as usize;
         if num_pts < n_min {
-            return Err(format!("Output length {} has to be at least {}", num_pts, n_min));
+            return Err(format!(
+                "Output length {} has to be at least {}",
+                num_pts, n_min
+            ));
         }
 
         // Match Python's q0 calculation exactly
-        let q0 = if k0 >= 0 { 
-            k0 / self.hop as i32 + self.p_min() 
-        } else { 
-            k0 / self.hop as i32 
+        let q0 = if k0 >= 0 {
+            k0 / self.hop as i32 + self.p_min()
+        } else {
+            k0 / self.hop as i32
         };
         let q1 = (self.p_max(k1 as usize)).min(q_max);
 
@@ -783,12 +829,13 @@ impl StandaloneSTFT {
             for f in 0..f_pts_expected {
                 stft_slice[f] = stft_data[f][stft_idx as usize];
             }
-            
+
             // Apply IFFT to get time domain signal
             let xs_raw = self.ifft_func(stft_slice);
-            
+
             // Apply dual window (Python: xs = self._ifft_func(S[:, q_ - self.p_min]) * self.dual_win)
-            let xs: Vec<Complex<f64>> = xs_raw.iter()
+            let xs: Vec<Complex<f64>> = xs_raw
+                .iter()
                 .zip(dual_win.iter())
                 .map(|(x, w)| x * w)
                 .collect();
@@ -800,12 +847,14 @@ impl StandaloneSTFT {
             let mut j1 = i1 - i0;
 
             let mut actual_i0 = i0;
-            if i0 < k0 {  // xs sticks out to the left on x
+            if i0 < k0 {
+                // xs sticks out to the left on x
                 j0 += k0 - i0;
                 actual_i0 = k0;
             }
 
-            if i1 > k0 + num_pts as i32 {  // xs sticks out to the right
+            if i1 > k0 + num_pts as i32 {
+                // xs sticks out to the right
                 j1 -= i1 - k0 - num_pts as i32;
             }
 
@@ -815,7 +864,7 @@ impl StandaloneSTFT {
                 let _target_end = target_start + (j1 - j0) as usize;
                 let source_start = j0 as usize;
                 let source_end = j1 as usize;
-                
+
                 for (i, &val) in xs[source_start..source_end].iter().enumerate() {
                     if target_start + i < x.len() {
                         // Python: x[i0-k0:i1-k0] += xs[j0:j1].real if self.onesided_fft else xs[j0:j1]
@@ -832,27 +881,38 @@ impl StandaloneSTFT {
         Ok(x)
     }
 
-    pub fn t(&self, n: usize, p0: Option<i32>, p1: Option<i32>, 
-          k_offset: Option<i32>) -> Result<Vec<f64>, String> {
+    pub fn t(
+        &self,
+        n: usize,
+        p0: Option<i32>,
+        p1: Option<i32>,
+        k_offset: Option<i32>,
+    ) -> Result<Vec<f64>, String> {
         let (p0, p1) = self.p_range(n, p0, p1)?;
         let k_offset = k_offset.unwrap_or(0);
-        Ok((p0..p1).map(|p| (p * self.hop as i32 + k_offset) as f64 * self.sampling_period()).collect())
+        Ok((p0..p1)
+            .map(|p| (p * self.hop as i32 + k_offset) as f64 * self.sampling_period())
+            .collect())
     }
 
     pub fn f(&self) -> Vec<f64> {
         let freqs: Vec<f64> = if self.fft_mode.is_onesided() {
-            (0..self.f_pts()).map(|i| i as f64 / (self.mfft as f64 * self.sampling_period())).collect()
+            (0..self.f_pts())
+                .map(|i| i as f64 / (self.mfft as f64 * self.sampling_period()))
+                .collect()
         } else {
-            (0..self.mfft).map(|i| {
-                let freq = i as f64 / (self.mfft as f64 * self.sampling_period());
-                if i > self.mfft / 2 {
-                    freq - 1.0 / self.sampling_period()
-                } else {
-                    freq
-                }
-            }).collect()
+            (0..self.mfft)
+                .map(|i| {
+                    let freq = i as f64 / (self.mfft as f64 * self.sampling_period());
+                    if i > self.mfft / 2 {
+                        freq - 1.0 / self.sampling_period()
+                    } else {
+                        freq
+                    }
+                })
+                .collect()
         };
-        
+
         freqs
     }
 }

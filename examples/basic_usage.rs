@@ -1,5 +1,5 @@
-use spectrust_stft::StandaloneSTFT;
 use num_complex::Complex;
+use spectrust_stft::StandaloneSTFT;
 
 /// Create a Hann window of given length
 fn hann_window(length: usize) -> Vec<f64> {
@@ -19,12 +19,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 2. Create STFT instance
     let mut stft = StandaloneSTFT::new(
         window,
-        4,      // hop length
-        1000.0, // sampling rate (Hz)
+        4,                // hop length
+        1000.0,           // sampling rate (Hz)
         Some("onesided"), // FFT mode
-        None,   // mfft (defaults to window length)
-        None,   // dual_win (computed automatically)
-        None,   // phase_shift
+        None,             // mfft (defaults to window length)
+        None,             // dual_win (computed automatically)
+        None,             // phase_shift
     )?;
 
     println!("STFT parameters:");
@@ -47,14 +47,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Forward STFT
         let stft_result = stft.stft(&signal, None, None, None)?;
-        println!("STFT shape: {} time slices × {} frequency bins", 
-                stft_result.len(), stft_result[0].len());
+        println!(
+            "STFT shape: {} time slices × {} frequency bins",
+            stft_result.len(),
+            stft_result[0].len()
+        );
 
         // Transpose STFT result for ISTFT (convert [time][freq] to [freq][time])
         let time_slices = stft_result.len();
         let freq_bins = stft_result[0].len();
         let mut stft_transposed = vec![vec![Complex::new(0.0, 0.0); time_slices]; freq_bins];
-        
+
         for t in 0..time_slices {
             for f in 0..freq_bins {
                 stft_transposed[f][t] = stft_result[t][f];
@@ -67,20 +70,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Calculate reconstruction error
         let min_len = signal.len().min(reconstructed.len());
-        let max_error = signal[..min_len].iter()
+        let max_error = signal[..min_len]
+            .iter()
             .zip(reconstructed[..min_len].iter())
             .map(|(a, b)| (a - b).abs())
             .fold(0.0, f64::max);
 
-        let mean_error = signal[..min_len].iter()
+        let mean_error = signal[..min_len]
+            .iter()
             .zip(reconstructed[..min_len].iter())
             .map(|(a, b)| (a - b).abs())
-            .sum::<f64>() / min_len as f64;
+            .sum::<f64>()
+            / min_len as f64;
 
         println!("Reconstruction quality:");
         println!("  Max error: {:.2e}", max_error);
         println!("  Mean error: {:.2e}", mean_error);
-        
+
         if max_error < 1e-14 {
             println!("  ✅ Perfect reconstruction (machine precision)");
         } else if max_error < 1e-10 {
@@ -94,9 +100,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\nFrequency and Time Axes:");
     let freqs = stft.f();
     println!("Frequency bins: {:?}", freqs);
-    
+
     let time_axis = stft.t(64, None, None, None)?;
-    println!("Time samples (first 5): {:?}", &time_axis[..5.min(time_axis.len())]);
+    println!(
+        "Time samples (first 5): {:?}",
+        &time_axis[..5.min(time_axis.len())]
+    );
 
     println!("\n🎉 SpectRust demonstration complete!");
     Ok(())
