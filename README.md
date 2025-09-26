@@ -10,34 +10,46 @@ This repository contains identical Short-Time Fourier Transform (STFT) implement
 - `src/bin/shared_data_test.rs` - Rust test binary for pipeline verification
 
 ### Pipeline Comparison
-- `generate_pipeline_comparison.py` - **Main script** to generate all comparison plots
+- `generate_separated_plots.py` - **Main script** to generate clean, separated comparison plots
 
 ## Usage
 
-### Generate Complete Pipeline Comparison
+### Generate Separated Pipeline Comparison
 
 ```bash
 # 1. First, run the Rust test to generate shared data
 cargo build --release --bin shared_data_test
 ./target/release/shared_data_test
 
-# 2. Generate all pipeline comparison plots
-python generate_pipeline_comparison.py
+# 2. Generate all separated comparison plots
+python generate_separated_plots.py
 ```
 
-This generates:
-- `impulse_complete_pipeline.png` - Complete impulse signal pipeline verification
-- `sine_wave_complete_pipeline.png` - Complete sine wave pipeline verification  
-- `chirp_complete_pipeline.png` - Complete chirp signal pipeline verification
+This generates **6 clean, focused plots**:
+
+**Pipeline Comparisons** (Input → Reconstruction):
+- `impulse_pipeline_comparison.png` - Clean impulse signal comparison
+- `sine_wave_pipeline_comparison.png` - Clean sine wave comparison  
+- `chirp_pipeline_comparison.png` - Clean chirp signal comparison
+
+**Spectrogram Analysis** (Frequency-Time Details):
+- `impulse_spectrogram_analysis.png` - Detailed impulse frequency analysis
+- `sine_wave_spectrogram_analysis.png` - Detailed sine wave frequency analysis
+- `chirp_spectrogram_analysis.png` - Detailed chirp frequency analysis
 
 ### What Each Plot Shows
 
-Each plot demonstrates the **complete STFT pipeline** for both implementations:
+**Pipeline Comparison Plots** focus on the core verification:
+1. **Input Signal**: Identical data for both implementations
+2. **Python Reconstruction**: Complete STFT→ISTFT pipeline result
+3. **Rust Reconstruction**: Complete STFT→ISTFT pipeline result (identical)
+4. **Error Comparison**: Machine precision level accuracy
 
-1. **Step 1**: Input Signal (identical for both)
-2. **Step 2**: Forward STFT spectrograms (Python vs Rust - identical)
-3. **Step 3**: Inverse STFT reconstructions (Python vs Rust - identical)
-4. **Step 4**: Error comparison (machine precision level)
+**Spectrogram Analysis Plots** provide detailed frequency analysis:
+1. **Time Domain**: Original signal waveform
+2. **Python STFT**: Frequency-time spectrogram
+3. **Rust STFT**: Identical frequency-time spectrogram
+4. **Difference**: Zero difference (perfect match)
 
 ## Verification Results
 
