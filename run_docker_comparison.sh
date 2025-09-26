@@ -14,10 +14,10 @@ mkdir -p comparison_results
 # Step 1: Build Docker images
 echo "📦 Building Docker images..."
 echo "Building Rust container..."
-docker build -f Dockerfile.rust -t spectrust-rust .
+docker build -f docker/rust.Dockerfile -t spectrust-rust .
 
 echo "Building Python container..."
-docker build -f Dockerfile.python -t spectrust-python .
+docker build -f docker/py.Dockerfile -t spectrust-python .
 
 echo ""
 

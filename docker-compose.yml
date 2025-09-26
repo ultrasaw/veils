@@ -4,7 +4,7 @@ services:
   rust-stft:
     build:
       context: .
-      dockerfile: Dockerfile.rust
+      dockerfile: rust.Dockerfile
     volumes:
       - ./comparison_results:/workspace/comparison_results
     container_name: spectrust-rust
@@ -12,7 +12,7 @@ services:
   python-stft:
     build:
       context: .
-      dockerfile: Dockerfile.python
+            dockerfile: docker/py.Dockerfile
     volumes:
       - ./comparison_results:/workspace/comparison_results
       - ./standalone_stft.py:/workspace/standalone_stft.py

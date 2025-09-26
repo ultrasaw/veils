@@ -11,7 +11,7 @@ This repository contains identical Short-Time Fourier Transform (STFT) implement
 
 ### Docker Infrastructure
 - `Dockerfile.rust` - Rust STFT implementation container
-- `Dockerfile.python` - Python STFT implementation and plotting container  
+- `docker/py.Dockerfile` - Python STFT implementation and plotting container  
 - `docker-compose.yml` - Container orchestration
 - `run_docker_comparison.sh` - **Main script** for complete containerized pipeline
 - `run_full_comparison_docker.py` - Docker-optimized Python processing script
@@ -36,7 +36,7 @@ This script:
 ```bash
 # 1. Build images
 docker build -f Dockerfile.rust -t spectrust-rust .
-docker build -f Dockerfile.python -t spectrust-python .
+docker build -f docker/py.Dockerfile -t spectrust-python .
 
 # 2. Run Rust container
 docker run --rm -v $(pwd)/comparison_results:/workspace/comparison_results spectrust-rust
@@ -101,3 +101,4 @@ docker run --rm -v $(pwd)/comparison_results:/workspace/comparison_results spect
 - **Complete Pipeline**: Tests entire workflow from input signal to final reconstruction
 - **Machine Precision**: All errors at 1e-17 level (6 orders better than required)
 - **Containerized**: Both implementations run in isolated Docker environments
+onments
