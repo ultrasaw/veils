@@ -20,3 +20,7 @@ path = "src/bin/comprehensive_test.rs"
 [[bin]]
 name = "simple_debug"
 path = "src/bin/simple_debug.rs"
+
+[[bin]]
+name = "shared_data_test"
+path = "src/bin/shared_data_test.rs"
