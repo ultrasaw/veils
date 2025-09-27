@@ -12,7 +12,7 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "Running comprehensive tests..."
-docker run --rm -v /home/gio/Documents/_projects/veils:/workspace -w /workspace veils-comprehensive-test sh -c "
+docker run --rm -v $(pwd):/workspace -w /workspace veils-comprehensive-test sh -c "
     echo '📋 Building library...' &&
     cargo build --verbose && 
     echo '🧪 Running unit tests...' &&
