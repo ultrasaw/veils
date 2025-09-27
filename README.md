@@ -24,8 +24,8 @@ This repository contains the stripped-down `scipy.signal.ShortTimeFFT` class imp
 
 ## Local Testing Scripts → CI Jobs Mapping
 
-| Local Script | CI Job | Purpose | Speed |
-|-------------|---------|---------|-------|
+| Local Script | CI Job | Purpose |
+|-------------|---------|---------|
 | `./run_code_quality_checks.sh` | `code-quality` | Format + lint checks |
 | `./run_comprehensive_tests.sh` | `comprehensive-test` | Build + all tests + docs |
 | `./run_crate_tests.sh` | `publish-check` | Clean env + publish dry-run |
