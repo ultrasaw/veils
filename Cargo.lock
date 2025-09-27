@@ -138,16 +138,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "spectrust"
-version = "0.1.0"
-dependencies = [
- "num-complex",
- "rustfft",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "strength_reduce"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -179,3 +169,13 @@ name = "unicode-ident"
 version = "1.0.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f63a545481291138910575129486daeaf8ac54aee4387fe7906919f7830c7d9d"
+
+[[package]]
+name = "veils"
+version = "0.1.0"
+dependencies = [
+ "num-complex",
+ "rustfft",
+ "serde",
+ "serde_json",
+]

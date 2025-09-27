@@ -1,6 +1,6 @@
 use num_complex::Complex;
 
-use spectrust::StandaloneSTFT;
+use veils::StandaloneSTFT;
 use std::collections::HashMap;
 use std::fs;
 

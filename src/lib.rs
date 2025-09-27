@@ -14,7 +14,7 @@
 //! ## Quick Start
 //!
 //! ```rust
-//! use spectrust::StandaloneSTFT;
+//! use veils::StandaloneSTFT;
 //!
 //! // Create a Hann window
 //! let window: Vec<f64> = (0..16)
@@ -90,7 +90,7 @@ impl FftMode {
 /// # Examples
 ///
 /// ```rust,no_run
-/// use spectrust::StandaloneSTFT;
+/// use veils::StandaloneSTFT;
 ///
 /// // Create a simple Hann window
 /// let window: Vec<f64> = (0..16)
@@ -145,7 +145,7 @@ impl StandaloneSTFT {
     /// # Examples
     ///
     /// ```rust
-    /// use spectrust::StandaloneSTFT;
+    /// use veils::StandaloneSTFT;
     ///
     /// // Hann window of length 16
     /// let window: Vec<f64> = (0..16)
@@ -431,8 +431,19 @@ impl StandaloneSTFT {
                 full_x[..x.len()].copy_from_slice(&x);
 
                 // Mirror the spectrum (conjugate symmetry)
-                for i in 1..(self.mfft / 2) {
-                    full_x[self.mfft - i] = x[i].conj();
+                // Skip DC (index 0) and Nyquist frequency (last element for even mfft)
+                let mirror_end = if self.mfft % 2 == 0 {
+                    // For even mfft, don't mirror the Nyquist frequency
+                    (self.mfft / 2).min(x.len() - 1)
+                } else {
+                    // For odd mfft, mirror all except DC
+                    (self.mfft / 2).min(x.len() - 1)
+                };
+                
+                for i in 1..=mirror_end {
+                    if i < x.len() && (self.mfft - i) < full_x.len() {
+                        full_x[self.mfft - i] = x[i].conj();
+                    }
                 }
 
                 if let Some(ref ifft) = self.inverse_fft {
@@ -460,8 +471,17 @@ impl StandaloneSTFT {
                 let mut full_x = vec![Complex::new(0.0, 0.0); self.mfft];
                 full_x[..xc.len()].copy_from_slice(&xc);
 
-                for i in 1..(self.mfft / 2) {
-                    full_x[self.mfft - i] = xc[i].conj();
+                // Mirror the spectrum (conjugate symmetry) - same fix as OneSided
+                let mirror_end = if self.mfft % 2 == 0 {
+                    (self.mfft / 2).min(xc.len() - 1)
+                } else {
+                    (self.mfft / 2).min(xc.len() - 1)
+                };
+                
+                for i in 1..=mirror_end {
+                    if i < xc.len() && (self.mfft - i) < full_x.len() {
+                        full_x[self.mfft - i] = xc[i].conj();
+                    }
                 }
 
                 if let Some(ref ifft) = self.inverse_fft {
@@ -471,8 +491,9 @@ impl StandaloneSTFT {
             }
         }
 
-        // CRITICAL FIX: Apply scipy-compatible normalization
-        // RustFFT doesn't normalize by default, but scipy applies 1/N normalization on IFFT
+        // CRITICAL FIX: Apply correct normalization to match scipy behavior
+        // RustFFT produces unnormalized results, scipy.fft.irfft produces normalized results
+        // For onesided IFFT, we need to normalize by the correct factor to match scipy
         let normalization_factor = 1.0 / (self.mfft as f64);
         for val in &mut x {
             *val *= normalization_factor;
@@ -655,7 +676,7 @@ impl StandaloneSTFT {
     /// # Examples
     ///
     /// ```rust
-    /// use spectrust::StandaloneSTFT;
+    /// use veils::StandaloneSTFT;
     ///
     /// let window: Vec<f64> = (0..16)
     ///     .map(|i| 0.5 * (1.0 - (2.0 * std::f64::consts::PI * i as f64 / 15.0).cos()))
@@ -738,7 +759,7 @@ impl StandaloneSTFT {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use spectrust::StandaloneSTFT;
+    /// use veils::StandaloneSTFT;
     ///
     /// let window: Vec<f64> = (0..16)
     ///     .map(|i| 0.5 * (1.0 - (2.0 * std::f64::consts::PI * i as f64 / 15.0).cos()))
@@ -919,5 +940,10 @@ impl StandaloneSTFT {
         };
 
         freqs
+    }
+
+    /// Debug method to access IFFT function
+    pub fn debug_ifft_func(&self, x: Vec<Complex<f64>>) -> Vec<Complex<f64>> {
+        self.ifft_func(x)
     }
 }

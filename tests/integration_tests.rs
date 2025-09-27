@@ -1,5 +1,5 @@
 use num_complex::Complex;
-use spectrust::StandaloneSTFT;
+use veils::StandaloneSTFT;
 
 /// Convert STFT result from [time][freq] to [freq][time] format for ISTFT
 fn transpose_stft(stft_result: &[Vec<Complex<f64>>]) -> Vec<Vec<Complex<f64>>> {

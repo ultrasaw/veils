@@ -1,25 +1,41 @@
 use num_complex::Complex;
 
-use spectrust::StandaloneSTFT;
+use veils::StandaloneSTFT;
 use std::fs;
 
 #[derive(serde::Deserialize)]
 struct SharedTestData {
-    signals: std::collections::HashMap<String, Vec<f64>>,
-    parameters: TestParameters,
+    // New format
+    signal_sets: Option<std::collections::HashMap<String, std::collections::HashMap<String, Vec<f64>>>>,
+    parameter_sets: Option<std::collections::HashMap<String, TestParameters>>,
+    test_combinations: Option<Vec<TestCombination>>,
+    
+    // Old format (for backward compatibility)
+    signals: Option<std::collections::HashMap<String, Vec<f64>>>,
+    parameters: Option<TestParameters>,
 }
 
 #[derive(serde::Deserialize)]
 struct TestParameters {
+    name: Option<String>,
     window_length: usize,
     hop_length: usize,
     fs: f64,
     window: Vec<f64>,
 }
 
+#[derive(serde::Deserialize)]
+struct TestCombination {
+    signals: String,
+    params: String,
+}
+
 #[derive(serde::Serialize)]
 struct RustResult {
+    result_key: Option<String>,
     signal_name: String,
+    params_name: Option<String>,
+    combination_name: Option<String>,
     rust_abs_error: f64,
     rust_rel_error: f64,
     stft_match_confirmed: bool,
@@ -41,8 +57,12 @@ fn test_signal(
     hop: usize,
     fs: f64,
     signal_name: &str,
+    params_name: Option<&str>,
+    result_key: Option<&str>,
+    combination_name: Option<&str>,
 ) -> Result<RustResult, String> {
-    println!("Testing signal: {}", signal_name);
+    let display_name = result_key.unwrap_or(signal_name);
+    println!("Testing signal: {}", display_name);
 
     // Create STFT instance
     let mut stft =
@@ -85,7 +105,10 @@ fn test_signal(
     println!("  Reconstruction error: {:.6e}", abs_error);
 
     Ok(RustResult {
+        result_key: result_key.map(|s| s.to_string()),
         signal_name: signal_name.to_string(),
+        params_name: params_name.map(|s| s.to_string()),
+        combination_name: combination_name.map(|s| s.to_string()),
         rust_abs_error: abs_error,
         rust_rel_error: rel_error,
         stft_match_confirmed: true, // We'll assume STFT is correct based on previous validation
@@ -103,65 +126,119 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let test_data: SharedTestData = serde_json::from_str(&test_data_str)?;
 
-    println!("Loaded test data:");
-    println!("  Window length: {}", test_data.parameters.window_length);
-    println!("  Hop length: {}", test_data.parameters.hop_length);
-    println!("  Sampling rate: {}", test_data.parameters.fs);
-    println!(
-        "  Signals: {:?}",
-        test_data.signals.keys().collect::<Vec<_>>()
-    );
-
-    // Verify window matches
-    let expected_window = create_hann_window(test_data.parameters.window_length);
-    let window_match = test_data
-        .parameters
-        .window
-        .iter()
-        .zip(expected_window.iter())
-        .all(|(a, b)| (a - b).abs() < 1e-15);
-
-    println!("  Window match: {}", if window_match { "✅" } else { "❌" });
-
     let mut results = Vec::new();
 
-    // Test each signal
-    for (signal_name, signal) in &test_data.signals {
-        match test_signal(
-            signal,
-            &test_data.parameters.window,
-            test_data.parameters.hop_length,
-            test_data.parameters.fs,
-            signal_name,
-        ) {
-            Ok(result) => {
-                let status = if result.reconstruction_successful {
-                    "✅"
-                } else {
-                    "❌"
-                };
-                println!("{} {} completed", status, signal_name);
-                results.push(result);
-            }
-            Err(e) => {
-                println!("❌ {} failed: {}", signal_name, e);
+    // Check if this is new format or old format
+    if let (Some(signal_sets), Some(parameter_sets), Some(combinations)) = 
+        (&test_data.signal_sets, &test_data.parameter_sets, &test_data.test_combinations) {
+        
+        // New format with multiple combinations
+        println!("Loaded test data (new format):");
+        println!("  Signal sets: {}", signal_sets.len());
+        println!("  Parameter sets: {}", parameter_sets.len());
+        println!("  Test combinations: {}", combinations.len());
+
+        for combination in combinations {
+            let signals = signal_sets.get(&combination.signals)
+                .ok_or_else(|| format!("Signal set '{}' not found", combination.signals))?;
+            let params = parameter_sets.get(&combination.params)
+                .ok_or_else(|| format!("Parameter set '{}' not found", combination.params))?;
+
+            let combination_name = format!("{}_{}", combination.signals, combination.params);
+            println!("\nTesting combination: {}", combination_name);
+            println!("  Window length: {}", params.window_length);
+            println!("  Hop length: {}", params.hop_length);
+            println!("  Sampling rate: {}", params.fs);
+            println!("  Signals: {:?}", signals.keys().collect::<Vec<_>>());
+
+            // Verify window matches
+            let expected_window = create_hann_window(params.window_length);
+            let window_match = params.window.iter()
+                .zip(expected_window.iter())
+                .all(|(a, b)| (a - b).abs() < 1e-15);
+            println!("  Window match: {}", if window_match { "✅" } else { "❌" });
+
+            // Test each signal with these parameters
+            for (signal_name, signal) in signals {
+                let result_key = format!("{}_{}", signal_name, params.name.as_deref().unwrap_or("unknown"));
+                
+                match test_signal(
+                    signal,
+                    &params.window,
+                    params.hop_length,
+                    params.fs,
+                    signal_name,
+                    params.name.as_deref(),
+                    Some(&result_key),
+                    Some(&combination_name),
+                ) {
+                    Ok(result) => {
+                        let status = if result.reconstruction_successful { "✅" } else { "❌" };
+                        println!("{} {} completed", status, result_key);
+                        results.push(result);
+                    }
+                    Err(e) => {
+                        println!("❌ {} failed: {}", result_key, e);
+                    }
+                }
             }
         }
+
+    } else if let (Some(signals), Some(parameters)) = (&test_data.signals, &test_data.parameters) {
+        
+        // Old format - backward compatibility
+        println!("Loaded test data (old format):");
+        println!("  Window length: {}", parameters.window_length);
+        println!("  Hop length: {}", parameters.hop_length);
+        println!("  Sampling rate: {}", parameters.fs);
+        println!("  Signals: {:?}", signals.keys().collect::<Vec<_>>());
+
+        // Verify window matches
+        let expected_window = create_hann_window(parameters.window_length);
+        let window_match = parameters.window.iter()
+            .zip(expected_window.iter())
+            .all(|(a, b)| (a - b).abs() < 1e-15);
+        println!("  Window match: {}", if window_match { "✅" } else { "❌" });
+
+        // Test each signal
+        for (signal_name, signal) in signals {
+            match test_signal(
+                signal,
+                &parameters.window,
+                parameters.hop_length,
+                parameters.fs,
+                signal_name,
+                None,
+                None,
+                None,
+            ) {
+                Ok(result) => {
+                    let status = if result.reconstruction_successful { "✅" } else { "❌" };
+                    println!("{} {} completed", status, signal_name);
+                    results.push(result);
+                }
+                Err(e) => {
+                    println!("❌ {} failed: {}", signal_name, e);
+                }
+            }
+        }
+    } else {
+        return Err("Invalid test data format - missing required fields".into());
     }
 
     // Print summary
     println!("\nResults Summary:");
-    println!("Signal          Rust Error   Status");
-    println!("----------------------------------------");
+    println!("{:<25} {:<15} {:<15} {:<12} {}", "Result Key", "Signal", "Params", "Rust Error", "Status");
+    println!("{}", "-".repeat(80));
+    
     for result in &results {
-        let status = if result.reconstruction_successful {
-            "✅ Perfect"
-        } else {
-            "❌ Error"
-        };
+        let status = if result.reconstruction_successful { "✅ Perfect" } else { "❌ Error" };
+        let result_key = result.result_key.as_deref().unwrap_or(&result.signal_name);
+        let params_name = result.params_name.as_deref().unwrap_or("default");
+        
         println!(
-            "{:<15} {:<12.2e} {}",
-            result.signal_name, result.rust_abs_error, status
+            "{:<25} {:<15} {:<15} {:<12.2e} {}",
+            result_key, result.signal_name, params_name, result.rust_abs_error, status
         );
     }
 
@@ -172,21 +249,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("\nResults saved to comparison_results/rust_results.json");
 
-    let perfect_count = results
-        .iter()
-        .filter(|r| r.reconstruction_successful)
-        .count();
+    let perfect_count = results.iter().filter(|r| r.reconstruction_successful).count();
     println!("\nOverall Assessment:");
-    println!(
-        "Perfect reconstruction: {}/{}",
-        perfect_count,
-        results.len()
-    );
+    println!("Perfect reconstruction: {}/{}", perfect_count, results.len());
 
     if perfect_count == results.len() {
-        println!("🎉 All signals perfectly reconstructed!");
+        println!("🎉 All test combinations perfectly reconstructed!");
     } else {
-        println!("⚠️  Some signals need attention");
+        println!("⚠️  Some test combinations need attention");
     }
 
     Ok(())

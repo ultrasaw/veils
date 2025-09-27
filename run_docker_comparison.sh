@@ -14,16 +14,16 @@ mkdir -p comparison_results
 # Step 1: Build Docker images
 echo "📦 Building Docker images..."
 echo "Building Rust container..."
-docker build -f docker/rust.Dockerfile -t spectrust-rust .
+docker build -f docker/rust.Dockerfile -t veils-rust .
 
 echo "Building Python container..."
-docker build -f docker/py.Dockerfile -t spectrust-python .
+docker build -f docker/py.Dockerfile -t veils-python .
 
 echo ""
 
 # Step 2: Run Python container to generate data
 echo "📊 Generating test data..."
-docker run --rm -v $(pwd)/comparison_results:/workspace/comparison_results spectrust-python python run_full_comparison_docker.py --generate-data
+docker run --rm -v $(pwd)/comparison_results:/workspace/comparison_results veils-python python run_full_comparison_docker.py --generate-data
 
 if [ $? -ne 0 ]; then
     echo "❌ Data generation failed!"
@@ -36,7 +36,7 @@ echo ""
 
 # Step 3: Run Rust container
 echo "🦀 Running Rust STFT implementation..."
-docker run --rm -v $(pwd)/comparison_results:/workspace/comparison_results spectrust-rust
+docker run --rm -v $(pwd)/comparison_results:/workspace/comparison_results veils-rust
 
 if [ $? -ne 0 ]; then
     echo "❌ Rust container failed!"
@@ -48,7 +48,7 @@ echo ""
 
 # Step 4: Run Python container to process results and generate plots
 echo "🐍 Running Python STFT implementation and plotting..."
-docker run --rm -v $(pwd)/comparison_results:/workspace/comparison_results spectrust-python python run_full_comparison_docker.py --run-comparison
+docker run --rm -v $(pwd)/comparison_results:/workspace/comparison_results veils-python python run_full_comparison_docker.py --run-comparison
 
 if [ $? -ne 0 ]; then
     echo "❌ Python container failed!"

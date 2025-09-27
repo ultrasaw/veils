@@ -1,5 +1,5 @@
 use num_complex::Complex;
-use spectrust::StandaloneSTFT;
+use veils::StandaloneSTFT;
 
 /// Create a Hann window of given length
 fn hann_window(length: usize) -> Vec<f64> {

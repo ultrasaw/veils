@@ -1,4 +1,4 @@
-# SpectRust: Python vs Rust STFT Implementation
+# SpectRust: Rust STFT Implementation
 
 This repository contains the stripped-down `scipy.signal.ShortTimeFFT` class implementation in Python and Rust, with comprehensive verification of ~1:1 accuracy between the implementations.
 
@@ -36,6 +36,8 @@ This repository contains the stripped-down `scipy.signal.ShortTimeFFT` class imp
 ## Usage
 
 ### Local Development Testing
+
+Use docker and do small incremental changes; run test scripts to pinpoint and fix issues or add features.
 
 ```bash
 # Quick quality check (matches CI code-quality job)
