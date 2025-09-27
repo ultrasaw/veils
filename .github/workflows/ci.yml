@@ -158,9 +158,6 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Install components
-      run: rustup component add rustfmt && rustup component add clippy
-
     - name: Cache cargo
       uses: actions/cache@v3
       with:
@@ -189,9 +186,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-
-    - name: Install components
-      run: rustup component add rustfmt && rustup component add clippy
 
     - name: Cache cargo
       uses: actions/cache@v3
