@@ -31,13 +31,11 @@ This repository contains the stripped-down `scipy.signal.ShortTimeFFT` class imp
 | `./run_crate_tests.sh` | `publish-check` | Clean env + publish dry-run |
 | `./run_docker_comparison.sh` | `sanity-check` | Python vs Rust verification |
 
-**💡 Tip**: Run `./run_code_quality_checks.sh` first for fast feedback, then `./run_comprehensive_tests.sh` for full validation.
-
 ## Usage
 
 ### Local Development Testing
 
-Use docker and do small incremental changes; run test scripts to pinpoint and fix issues or add features.
+Use docker and do small incremental changes; run test scripts to pinpoint and fix issues, or when working on new features.
 
 ```bash
 # Quick quality check (matches CI code-quality job)
@@ -94,11 +92,11 @@ docker run --rm -v $(pwd)/comparison_results:/workspace/comparison_results veils
 
 ## Verification Results
 
-| Signal Type | Python Error | Rust Error | Status |
-|-------------|--------------|------------|--------|
-| **Impulse** | 0.00e+00 | 0.00e+00 | ✅ **IDENTICAL** |
-| **Sine Wave** | 4.57e-17 | 6.19e-17 | ✅ **IDENTICAL** |
-| **Chirp** | 5.86e-17 | 6.79e-17 | ✅ **IDENTICAL** |
+| Signal Type | Python Error | Rust Error |
+|-------------|--------------|------------|
+| **Impulse** | 0.00e+00 | 0.00e+00 |
+| **Sine Wave** | 4.57e-17 | 6.19e-17 |
+| **Chirp** | 5.86e-17 | 6.79e-17 |
 
 ## Key Achievement
 

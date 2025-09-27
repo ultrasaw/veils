@@ -1,3 +1,4 @@
+'''WARNING 100% AI generated file'''
 """
 Standalone Short-Time Fourier Transform implementation extracted from scipy.signal.
 This version removes scipy dependencies and focuses on core STFT/ISTFT functionality.

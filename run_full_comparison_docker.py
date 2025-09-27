@@ -1,3 +1,4 @@
+'''WARNING 100% AI generated file'''
 #!/usr/bin/env python3
 """
 Complete STFT Implementation Comparison: Python vs Rust (Docker Version)

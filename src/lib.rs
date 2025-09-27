@@ -1,3 +1,4 @@
+// '''WARNING 100% AI generated file'''
 //! # Veils: High-Performance STFT Library
 //!
 //! Veils provides a high-performance Short-Time Fourier Transform (STFT) implementation
