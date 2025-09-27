@@ -229,7 +229,7 @@ def run_python_pipeline(test_data):
     print("All Python pipelines completed successfully")
     return all_results, stft_objects
 
-def create_pipeline_comparison_plot(result_key, python_data, rust_error):
+def create_pipeline_comparison_plot(result_key, python_data, rust_error, plot_dir):
     """Create clean pipeline comparison plot."""
     
     original = python_data['original']
@@ -313,14 +313,15 @@ def create_pipeline_comparison_plot(result_key, python_data, rust_error):
                 ha='center', va='top', fontsize=11, fontweight='bold', 
                 color='green', bbox=dict(boxstyle='round', facecolor='lightgreen', alpha=0.8))
     
-    plt.savefig(f'comparison_results/{result_key}_pipeline_comparison.png', 
+    plot_path = os.path.join(plot_dir, f'{result_key}_pipeline_comparison.png')
+    plt.savefig(plot_path, 
                dpi=150, bbox_inches=None, pad_inches=0.1, 
                facecolor='white', edgecolor='none')
     plt.close()
     
-    print(f"✅ Generated: {result_key}_pipeline_comparison.png")
+    print(f"✅ Generated: {plot_path}")
 
-def create_spectrogram_plot(result_key, python_data, stft_obj):
+def create_spectrogram_plot(result_key, python_data, stft_obj, plot_dir):
     """Create separate detailed spectrogram plot."""
     
     original = python_data['original']
@@ -381,18 +382,19 @@ def create_spectrogram_plot(result_key, python_data, stft_obj):
             ha='center', va='top', fontsize=12, fontweight='bold', 
             color='green', bbox=dict(boxstyle='round', facecolor='lightgreen', alpha=0.8))
     
-    plt.savefig(f'comparison_results/{result_key}_spectrogram_analysis.png', 
+    plot_path = os.path.join(plot_dir, f'{result_key}_spectrogram_analysis.png')
+    plt.savefig(plot_path, 
                dpi=150, bbox_inches=None, pad_inches=0.1,
                facecolor='white', edgecolor='none')
     plt.close()
     
-    print(f"✅ Generated: {result_key}_spectrogram_analysis.png")
+    print(f"✅ Generated: {plot_path}")
 
 def create_summary_report(python_results, rust_results):
     """Create comprehensive summary report."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
-    report = f"""
+    report = f"""\
 COMPLETE STFT IMPLEMENTATION COMPARISON REPORT (Docker Version)
 ==============================================================
 Generated: {timestamp}
@@ -419,7 +421,7 @@ COMPARISON RESULTS
                 python_err = python_data['error']
                 rust_err = rust_result['rust_abs_error']
                 
-                report += f"""
+                report += f"""\
 {signal_name.upper()} Signal:
 {'-' * (len(signal_name) + 8)}
 Python Pipeline Error: {python_err:.6e}
@@ -428,7 +430,7 @@ Error Difference:      {abs(python_err - rust_err):.6e}
 Status: {'✅ IDENTICAL (Machine Precision)' if abs(python_err - rust_err) < 1e-14 else '❌ DIFFERENT'}
 """
     
-    report += f"""
+    report += f"""\
 
 GENERATED VISUAL PROOF
 ======================
@@ -493,6 +495,7 @@ def run_comparison():
     print("\n4. Generating comparison plots...")
     
     results_summary = []
+    generated_files = []
     
     for result_key, python_data in python_results.items():
         # Find corresponding Rust result
@@ -505,23 +508,28 @@ def run_comparison():
                 print(f"   ⚠️  No Rust result found for {result_key}, skipping...")
                 continue
         
-        print(f"   Creating plots for {result_key}...")
+        combination_name = python_data['combination_name']
+        plot_dir = os.path.join('comparison_results', combination_name)
+        os.makedirs(plot_dir, exist_ok=True)
+        
+        print(f"   Creating plots in {plot_dir} for {result_key}...")
         
         # Get the appropriate STFT object for this combination
-        combination_name = python_data['combination_name']
         stft_obj = stft_objects.get(combination_name)
         if not stft_obj:
             print(f"   ⚠️  No STFT object found for {combination_name}, skipping spectrogram...")
             continue
         
         # Generate pipeline comparison plot
-        create_pipeline_comparison_plot(result_key, python_data, rust_result['rust_abs_error'])
+        create_pipeline_comparison_plot(result_key, python_data, rust_result['rust_abs_error'], plot_dir)
+        generated_files.append(os.path.join(plot_dir, f'{result_key}_pipeline_comparison.png'))
         
         # Generate spectrogram analysis plot
-        create_spectrogram_plot(result_key, python_data, stft_obj)
+        create_spectrogram_plot(result_key, python_data, stft_obj, plot_dir)
+        generated_files.append(os.path.join(plot_dir, f'{result_key}_spectrogram_analysis.png'))
         
         results_summary.append({
-            'result_key': result_key,
+            'result_key': result_key, # Corrected from result_.pykey
             'signal': python_data['signal_name'],
             'params': python_data['params_name'],
             'python_error': python_data['error'],
@@ -532,6 +540,7 @@ def run_comparison():
     # Step 5: Generate summary report
     print("\n5. Creating summary report...")
     create_summary_report(python_results, rust_results)
+    generated_files.append('comparison_results/full_comparison_report.txt')
     
     # Final summary
     print("\n" + "=" * 80)
@@ -546,10 +555,8 @@ def run_comparison():
     
     print("\n✅ All comparison files generated successfully!")
     print("\nGenerated files:")
-    for result in results_summary:
-        print(f"  📊 {result['result_key']}_pipeline_comparison.png")
-        print(f"  📊 {result['result_key']}_spectrogram_analysis.png")
-    print("  📄 full_comparison_report.txt")
+    for file_path in generated_files:
+        print(f"  - {file_path}")
     
     perfect_count = sum(1 for r in results_summary if r['difference'] < 1e-14)
     print(f"\n🎉 Perfect reconstruction: {perfect_count}/{len(results_summary)} test combinations")
