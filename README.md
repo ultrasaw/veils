@@ -97,11 +97,3 @@ docker run --rm -v $(pwd)/comparison_results:/workspace/comparison_results veils
 | **Impulse** | 0.00e+00 | 0.00e+00 |
 | **Sine Wave** | 4.57e-17 | 6.19e-17 |
 | **Chirp** | 5.86e-17 | 6.79e-17 |
-
-## Technical Details
-
-- **Fixed Seed**: All test signals use seed=42 for reproducible results
-- **Shared Data**: JSON ensures bit-exact data transfer between containers
-- **Complete Pipeline**: Tests entire workflow from input signal to final reconstruction
-- **Machine Precision**: All errors at 1e-17 level
-- **Containerized**: Both implementations run in isolated Docker environments
