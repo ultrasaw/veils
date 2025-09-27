@@ -9,7 +9,7 @@ fn hann_window(length: usize) -> Vec<f64> {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("SpectRust Basic Usage Example");
+    println!("Veils Basic Usage Example");
     println!("============================");
 
     // 1. Create a window function (Hann window)
@@ -107,7 +107,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &time_axis[..5.min(time_axis.len())]
     );
 
-    println!("\n🎉 SpectRust demonstration complete!");
+    println!("\n🎉 Veils demonstration complete!");
     Ok(())
 }
 

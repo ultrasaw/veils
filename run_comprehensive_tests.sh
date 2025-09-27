@@ -1,10 +1,10 @@
 #!/bin/bash
 
-echo "🦀 Running Comprehensive SpectRust Tests in Docker"
+echo "🦀 Running Comprehensive Veils Tests in Docker"
 echo "================================================="
 
 echo "Building comprehensive test container..."
-docker build -f docker/code_quality.Dockerfile -t spectrust-comprehensive-test .
+docker build -f docker/code_quality.Dockerfile -t veils-comprehensive-test .
 
 if [ $? -ne 0 ]; then
     echo "❌ Docker build failed!"
@@ -12,7 +12,7 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "Running comprehensive tests..."
-docker run --rm -v /home/gio/Documents/_projects/spectrust:/workspace -w /workspace spectrust-comprehensive-test sh -c "
+docker run --rm -v /home/gio/Documents/_projects/spectrust:/workspace -w /workspace veils-comprehensive-test sh -c "
     echo '📋 Building library...' &&
     cargo build --verbose && 
     echo '🧪 Running unit tests...' &&

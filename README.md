@@ -1,4 +1,4 @@
-# SpectRust: Rust STFT Implementation
+# Veils: Rust STFT Implementation
 
 This repository contains the stripped-down `scipy.signal.ShortTimeFFT` class implementation in Python and Rust, with comprehensive verification of ~1:1 accuracy between the implementations.
 
@@ -64,17 +64,17 @@ The `run_docker_comparison.sh` script:
 
 ```bash
 # 1. Build images
-docker build -f docker/rust.Dockerfile -t spectrust-rust .
-docker build -f docker/py.Dockerfile -t spectrust-python .
+docker build -f docker/rust.Dockerfile -t veils-rust .
+docker build -f docker/py.Dockerfile -t veils-python .
 
 # 2. Run Python container to generate data
-docker run --rm -v $(pwd)/comparison_results:/workspace/comparison_results spectrust-python python run_full_comparison_docker.py --generate-data
+docker run --rm -v $(pwd)/comparison_results:/workspace/comparison_results veils-python python run_full_comparison_docker.py --generate-data
 
 # 3. Run Rust container
-docker run --rm -v $(pwd)/comparison_results:/workspace/comparison_results spectrust-rust
+docker run --rm -v $(pwd)/comparison_results:/workspace/comparison_results veils-rust
 
 # 4. Run Python container to generate plots and report
-docker run --rm -v $(pwd)/comparison_results:/workspace/comparison_results spectrust-python python run_full_comparison_docker.py --run-comparison
+docker run --rm -v $(pwd)/comparison_results:/workspace/comparison_results veils-python python run_full_comparison_docker.py --run-comparison
 ```
 
 ### Generated Files

@@ -3,12 +3,12 @@
 # Test the Rust crate in a clean Docker environment
 # This ensures compatibility and that the crate works independently
 
-echo "🦀 Testing SpectRust STFT Crate in Docker"
+echo "🦀 Testing Veils STFT Crate in Docker"
 echo "========================================"
 
 # Build the test image
 echo "📦 Building Docker test environment..."
-docker build -f docker/create_test.Dockerfile -t spectrust-crate-test .
+docker build -f docker/create_test.Dockerfile -t veils-crate-test .
 
 if [ $? -ne 0 ]; then
     echo "❌ Docker build failed!"
@@ -20,7 +20,7 @@ echo "✅ Docker build successful!"
 # Run the tests
 echo ""
 echo "🧪 Running crate tests in clean environment..."
-docker run --rm spectrust-crate-test
+docker run --rm veils-crate-test
 
 if [ $? -eq 0 ]; then
     echo ""

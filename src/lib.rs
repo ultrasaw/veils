@@ -1,6 +1,6 @@
-//! # SpectRust: High-Performance STFT Library
+//! # Veils: High-Performance STFT Library
 //!
-//! SpectRust provides a high-performance Short-Time Fourier Transform (STFT) implementation
+//! Veils provides a high-performance Short-Time Fourier Transform (STFT) implementation
 //! with perfect compatibility to Python's scipy.signal.ShortTimeFFT.
 //!
 //! ## Features

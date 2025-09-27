@@ -98,19 +98,19 @@ jobs:
     - name: Generate test data using Python container
       run: |
         echo "Building Python container for data generation..."
-        docker build -f docker/py.Dockerfile -t spectrust-python .
+        docker build -f docker/py.Dockerfile -t veils-python .
         
         echo "Generating test data..."
         mkdir -p comparison_results
-        docker run --rm -v ${{ github.workspace }}/comparison_results:/workspace/comparison_results spectrust-python python run_full_comparison_docker.py --generate-data
+        docker run --rm -v ${{ github.workspace }}/comparison_results:/workspace/comparison_results veils-python python run_full_comparison_docker.py --generate-data
 
     - name: Build and run Rust sanity checks
       run: |
         echo "Building Rust container..."
-        docker build -f docker/rust.Dockerfile -t spectrust-rust .
+        docker build -f docker/rust.Dockerfile -t veils-rust .
         
         echo "Running Rust sanity checks..."
-        docker run --rm -v ${{ github.workspace }}/comparison_results:/workspace/comparison_results spectrust-rust
+        docker run --rm -v ${{ github.workspace }}/comparison_results:/workspace/comparison_results veils-rust
 
   benchmark:
     name: Performance Benchmark
@@ -211,6 +211,6 @@ jobs:
           - Perfect reconstruction with canonical dual window
           - Comprehensive test suite with containerized verification
           
-          See the [README](https://github.com/spectrust/spectrust-stft/blob/main/README.md) for usage examples.
+          See the [README](https://github.com/veils/veils/blob/main/README.md) for usage examples.
         draft: false
         prerelease: false
