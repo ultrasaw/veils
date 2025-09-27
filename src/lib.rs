@@ -439,7 +439,7 @@ impl StandaloneSTFT {
                     // For odd mfft, mirror all except DC
                     (self.mfft / 2).min(x.len() - 1)
                 };
-                
+
                 for i in 1..=mirror_end {
                     if i < x.len() && (self.mfft - i) < full_x.len() {
                         full_x[self.mfft - i] = x[i].conj();
@@ -472,12 +472,8 @@ impl StandaloneSTFT {
                 full_x[..xc.len()].copy_from_slice(&xc);
 
                 // Mirror the spectrum (conjugate symmetry) - same fix as OneSided
-                let mirror_end = if self.mfft % 2 == 0 {
-                    (self.mfft / 2).min(xc.len() - 1)
-                } else {
-                    (self.mfft / 2).min(xc.len() - 1)
-                };
-                
+                let mirror_end = (self.mfft / 2).min(xc.len() - 1);
+
                 for i in 1..=mirror_end {
                     if i < xc.len() && (self.mfft - i) < full_x.len() {
                         full_x[self.mfft - i] = xc[i].conj();

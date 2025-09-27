@@ -1,8 +1,8 @@
 use num_complex::Complex;
 
-use veils::StandaloneSTFT;
 use std::collections::HashMap;
 use std::fs;
+use veils::StandaloneSTFT;
 
 #[derive(serde::Deserialize)]
 struct TestSignal {

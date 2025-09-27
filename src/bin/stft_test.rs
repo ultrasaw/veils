@@ -1,7 +1,7 @@
 use num_complex::Complex;
 
-use veils::StandaloneSTFT;
 use std::fs;
+use veils::StandaloneSTFT;
 
 #[derive(serde::Deserialize)]
 #[allow(dead_code)]
