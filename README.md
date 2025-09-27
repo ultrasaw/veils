@@ -1,6 +1,6 @@
 # SpectRust: Python vs Rust STFT Implementation
 
-This repository contains identical Short-Time Fourier Transform (STFT) implementations in Python and Rust, with comprehensive verification of perfect 1:1 accuracy.
+This repository contains the stripped-down `scipy.signal.ShortTimeFFT` class implementation in Python and Rust, with comprehensive verification of ~1:1 accuracy between the implementations.
 
 ## Files
 
@@ -26,10 +26,10 @@ This repository contains identical Short-Time Fourier Transform (STFT) implement
 
 | Local Script | CI Job | Purpose | Speed |
 |-------------|---------|---------|-------|
-| `./run_code_quality_checks.sh` | `code-quality` | Format + lint checks | ⚡ **Fast** (30s) |
-| `./run_comprehensive_tests.sh` | `comprehensive-test` | Build + all tests + docs | 🔄 **Medium** (2-3min) |
-| `./run_crate_tests.sh` | `publish-check` | Clean env + publish dry-run | 🐌 **Slow** (5-10min) |
-| `./run_docker_comparison.sh` | `sanity-check` | Python vs Rust verification | 🐌 **Slow** (varies) |
+| `./run_code_quality_checks.sh` | `code-quality` | Format + lint checks |
+| `./run_comprehensive_tests.sh` | `comprehensive-test` | Build + all tests + docs |
+| `./run_crate_tests.sh` | `publish-check` | Clean env + publish dry-run |
+| `./run_docker_comparison.sh` | `sanity-check` | Python vs Rust verification |
 
 **💡 Tip**: Run `./run_code_quality_checks.sh` first for fast feedback, then `./run_comprehensive_tests.sh` for full validation.
 
@@ -51,14 +51,7 @@ This repository contains identical Short-Time Fourier Transform (STFT) implement
 ./run_docker_comparison.sh
 ```
 
-### Complete Containerized Pipeline (Recommended)
-
-```bash
-# Single command runs everything in Docker containers
-./run_docker_comparison.sh
-```
-
-This script:
+The `run_docker_comparison.sh` script:
 1. **Builds** both Rust and Python Docker images
 2. **Runs Python container** to generate test data
 3. **Runs Rust container** to generate STFT results
@@ -108,15 +101,6 @@ docker run --rm -v $(pwd)/comparison_results:/workspace/comparison_results spect
 ## Key Achievement
 
 **Perfect 1:1 Accuracy**: Both implementations produce mathematically identical results at machine precision level, confirming complete correctness of the Rust STFT implementation.
-
-## Docker Benefits
-
-- **🔒 Reproducible Environment**: Identical results across different systems
-- **📦 Zero Setup**: No need to install Rust, Python dependencies, or manage versions  
-- **🚀 Local CI Matching**: Test scripts mirror CI jobs exactly using same Docker environments
-- **🔄 Isolated Execution**: Each test runs in clean, separate containers
-- **📊 Automatic Plotting**: All visualizations generated without local matplotlib setup
-- **⚡ Fast Feedback**: Quality checks complete in ~30 seconds
 
 ## Technical Details
 
