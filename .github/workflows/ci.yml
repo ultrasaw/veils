@@ -18,13 +18,14 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  RUST_VERSION: "1.89"
 
 jobs:
   code-quality:
     name: Code Quality Checks
     runs-on: ubuntu-latest
     container:
-      image: rust:1.89
+      image: rust:${{ env.RUST_VERSION }}
 
     steps:
     - name: Checkout code
@@ -53,7 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: code-quality
     container:
-      image: rust:1.89
+      image: rust:${{ env.RUST_VERSION }}
 
     steps:
     - name: Checkout code
@@ -127,7 +128,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: sanity-check
     container:
-      image: rust:1.89
+      image: rust:${{ env.RUST_VERSION }}
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
     - name: Checkout code
@@ -153,7 +154,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: sanity-check
     container:
-      image: rust:1.89
+      image: rust:${{ env.RUST_VERSION }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -184,7 +185,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: publish-check
     container:
-      image: rust:1.89
+      image: rust:${{ env.RUST_VERSION }}
     if: github.event_name == 'release'
     steps:
     - name: Checkout code
