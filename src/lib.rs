@@ -334,16 +334,15 @@ impl StandaloneSTFT {
 
     /// Apply FFT based on fft_mode
     fn fft_func(&self, mut x: Vec<Complex<f64>>) -> Vec<Complex<f64>> {
-        // Handle phase shift first (like scipy does)
-        if self.phase_shift != 0 {
-            if x.len() < self.mfft {
-                // Zero pad if needed
-                x.resize(self.mfft, Complex::new(0.0, 0.0));
-            }
-            let p_s = ((self.phase_shift + self.m_num_mid() as i32) % self.m_num() as i32) as usize;
-            // Equivalent to np.roll(x, -p_s)
-            x.rotate_left(p_s);
+        // Handle phase shift first (like scipy does) - always apply if phase_shift is set
+        // Note: phase_shift is always Some(0) by default, so we always apply this
+        if x.len() < self.mfft {
+            // Zero pad if needed
+            x.resize(self.mfft, Complex::new(0.0, 0.0));
         }
+        let p_s = ((self.phase_shift + self.m_num_mid() as i32) % self.m_num() as i32) as usize;
+        // Equivalent to np.roll(x, -p_s, axis=-1)
+        x.rotate_left(p_s);
 
         // Ensure we have the right size for FFT
         if x.len() != self.mfft {
@@ -496,11 +495,9 @@ impl StandaloneSTFT {
             *val *= normalization_factor;
         }
 
-        // Handle phase shift
-        if self.phase_shift != 0 {
-            let p_s = ((self.phase_shift + self.m_num_mid() as i32) % self.m_num() as i32) as usize;
-            x.rotate_right(p_s);
-        }
+        // Handle phase shift - always apply like scipy does
+        let p_s = ((self.phase_shift + self.m_num_mid() as i32) % self.m_num() as i32) as usize;
+        x.rotate_right(p_s);
 
         // Return only the window length
         x.truncate(self.m_num());
