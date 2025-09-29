@@ -713,7 +713,7 @@ impl StandaloneSTFT {
         let k_offset = k_offset.unwrap_or(0);
 
         let slices = self.x_slices(x, k_offset, p0, p1);
-        let mut stft_result = Vec::new();
+        let mut time_slice_results = Vec::new();
 
         for slice in slices.iter() {
             // Apply window and compute FFT
@@ -732,8 +732,20 @@ impl StandaloneSTFT {
                 .collect();
 
             let fft_result = self.fft_func(windowed);
+            time_slice_results.push(fft_result);
+        }
 
-            stft_result.push(fft_result);
+        // Transpose to match scipy format: [frequency_bins][time_slices]
+        let num_freq_bins = self.f_pts();
+        let num_time_slices = time_slice_results.len();
+        let mut stft_result = vec![vec![Complex::new(0.0, 0.0); num_time_slices]; num_freq_bins];
+        
+        for (time_idx, time_slice) in time_slice_results.iter().enumerate() {
+            for (freq_idx, &freq_val) in time_slice.iter().enumerate() {
+                if freq_idx < num_freq_bins {
+                    stft_result[freq_idx][time_idx] = freq_val;
+                }
+            }
         }
 
         Ok(stft_result)
