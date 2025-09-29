@@ -24,4 +24,4 @@ COPY . .
 RUN cargo build --bin python_rust_comparison_helper
 
 # Set the default command
-CMD ["python", "final_comparison.py"]
+CMD ["python", "python/final_comparison.py"]
