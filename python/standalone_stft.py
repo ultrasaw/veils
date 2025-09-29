@@ -228,15 +228,15 @@ class StandaloneSTFT:
     def _fft_func(self, x: np.ndarray) -> np.ndarray:
         """Apply FFT based on fft_mode."""
         # Handle phase shift first (like scipy does)
-        if self.phase_shift != 0:
-            if len(x) < self.mfft:  # zero pad if needed
-                x_padded = np.zeros(self.mfft, dtype=x.dtype)
-                x_padded[:len(x)] = x
-                x = x_padded
+        if self.phase_shift is not None:
+            if x.shape[-1] < self.mfft:  # zero pad if needed
+                z_shape = list(x.shape)
+                z_shape[-1] = self.mfft - x.shape[-1]
+                x = np.hstack((x, np.zeros(z_shape, dtype=x.dtype)))
             p_s = (self.phase_shift + self.m_num_mid) % self.m_num
-            x = np.roll(x, -p_s)
+            x = np.roll(x, -p_s, axis=-1)
 
-        # Compute FFT based on mode
+        # Compute FFT based on mode - match scipy exactly
         if self.fft_mode == 'twosided':
             return fft_lib.fft(x, n=self.mfft)
         elif self.fft_mode == 'centered':
@@ -248,10 +248,7 @@ class StandaloneSTFT:
             # Either squared magnitude (psd) or magnitude is doubled:
             fac = np.sqrt(2) if getattr(self, '_scaling', None) == 'psd' else 2
             # For even input length, the last entry is unpaired:
-            if self.mfft % 2 == 0:
-                X[1:-1] *= fac
-            else:
-                X[1:] *= fac
+            X[1: -1 if self.mfft % 2 == 0 else None] *= fac
             return X
         else:
             raise ValueError(f"Unknown fft_mode: {self.fft_mode}")
@@ -259,27 +256,27 @@ class StandaloneSTFT:
     def _ifft_func(self, X: np.ndarray) -> np.ndarray:
         """Apply IFFT based on fft_mode."""
         if self.fft_mode == 'twosided':
-            x = fft_lib.ifft(X, n=self.mfft)
+            x = fft_lib.ifft(X, n=self.mfft, axis=-1)
         elif self.fft_mode == 'centered':
-            x = fft_lib.ifft(fft_lib.ifftshift(X), n=self.mfft)
+            x = fft_lib.ifft(fft_lib.ifftshift(X, axes=-1), n=self.mfft, axis=-1)
         elif self.fft_mode == 'onesided':
-            x = fft_lib.irfft(X, n=self.mfft)
+            x = fft_lib.irfft(X, n=self.mfft, axis=-1)
         elif self.fft_mode == 'onesided2X':
             Xc = X.copy()  # we do not want to modify function parameters
             fac = np.sqrt(2) if getattr(self, '_scaling', None) == 'psd' else 2
             # For even length X the last value is not paired with a negative
             # value on the two-sided FFT:
             q1 = -1 if self.mfft % 2 == 0 else None
-            Xc[1:q1] /= fac
-            x = fft_lib.irfft(Xc, n=self.mfft)
+            Xc[..., 1:q1] /= fac
+            x = fft_lib.irfft(Xc, n=self.mfft, axis=-1)
         else:
             raise ValueError(f"Unknown fft_mode: {self.fft_mode}")
 
-        # Handle phase shift
-        if self.phase_shift == 0:
-            return x[:self.m_num]
+        # Handle phase shift - match scipy exactly
+        if self.phase_shift is None:
+            return x[..., :self.m_num]
         p_s = (self.phase_shift + self.m_num_mid) % self.m_num
-        return np.roll(x, p_s)[:self.m_num]
+        return np.roll(x, p_s, axis=-1)[..., :self.m_num]
 
     def _x_slices(self, x: np.ndarray, k_offset: int, p0: int, p1: int, 
                   padding: str = 'zeros'):

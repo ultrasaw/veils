@@ -5,7 +5,6 @@ __pycache__/
 
 *.png
 *.json
-*.txt
 
 .DS_Store
 

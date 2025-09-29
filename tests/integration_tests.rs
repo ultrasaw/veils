@@ -1,25 +1,5 @@
 // '''WARNING 100% AI generated file'''
-use num_complex::Complex;
 use veils::StandaloneSTFT;
-
-/// Convert STFT result from [time][freq] to [freq][time] format for ISTFT
-fn transpose_stft(stft_result: &[Vec<Complex<f64>>]) -> Vec<Vec<Complex<f64>>> {
-    if stft_result.is_empty() || stft_result[0].is_empty() {
-        return vec![];
-    }
-
-    let time_slices = stft_result.len();
-    let freq_bins = stft_result[0].len();
-    let mut transposed = vec![vec![Complex::new(0.0, 0.0); time_slices]; freq_bins];
-
-    for (t, row) in stft_result.iter().enumerate() {
-        for (f, value) in row.iter().enumerate() {
-            transposed[f][t] = *value;
-        }
-    }
-
-    transposed
-}
 
 /// Create a Hann window of given length
 fn hann_window(length: usize) -> Vec<f64> {
@@ -149,11 +129,8 @@ fn test_perfect_reconstruction_impulse() {
     // Forward STFT
     let stft_result = stft.stft(&signal, None, None, None).unwrap();
 
-    // Transpose for ISTFT (convert [time][freq] to [freq][time])
-    let stft_transposed = transpose_stft(&stft_result);
-
-    // Inverse STFT
-    let reconstructed = stft.istft(&stft_transposed, None, None).unwrap();
+    // Inverse STFT (STFT already returns [freq][time] format)
+    let reconstructed = stft.istft(&stft_result, None, None).unwrap();
 
     // Check perfect reconstruction
     let min_len = signal.len().min(reconstructed.len());
@@ -184,11 +161,8 @@ fn test_perfect_reconstruction_sine_wave() {
     // Forward STFT
     let stft_result = stft.stft(&signal, None, None, None).unwrap();
 
-    // Transpose for ISTFT (convert [time][freq] to [freq][time])
-    let stft_transposed = transpose_stft(&stft_result);
-
-    // Inverse STFT
-    let reconstructed = stft.istft(&stft_transposed, None, None).unwrap();
+    // Inverse STFT (STFT already returns [freq][time] format)
+    let reconstructed = stft.istft(&stft_result, None, None).unwrap();
 
     // Check reconstruction accuracy
     let min_len = signal.len().min(reconstructed.len());
@@ -221,11 +195,8 @@ fn test_perfect_reconstruction_chirp() {
     // Forward STFT
     let stft_result = stft.stft(&signal, None, None, None).unwrap();
 
-    // Transpose for ISTFT (convert [time][freq] to [freq][time])
-    let stft_transposed = transpose_stft(&stft_result);
-
-    // Inverse STFT
-    let reconstructed = stft.istft(&stft_transposed, None, None).unwrap();
+    // Inverse STFT (STFT already returns [freq][time] format)
+    let reconstructed = stft.istft(&stft_result, None, None).unwrap();
 
     // Check reconstruction accuracy
     let min_len = signal.len().min(reconstructed.len());
@@ -272,11 +243,8 @@ fn test_all_signals_perfect_reconstruction() {
             "STFT frequency bins should not be empty"
         );
 
-        // Transpose for ISTFT (convert [time][freq] to [freq][time])
-        let stft_transposed = transpose_stft(&stft_result);
-
-        // Inverse STFT
-        let reconstructed = stft.istft(&stft_transposed, None, None).unwrap();
+        // Inverse STFT (STFT already returns [freq][time] format)
+        let reconstructed = stft.istft(&stft_result, None, None).unwrap();
 
         // Check reconstruction accuracy
         let min_len = test_signal.data.len().min(reconstructed.len());
@@ -315,25 +283,22 @@ fn test_different_fft_modes() {
         // Forward STFT
         let stft_result = stft.stft(&signal, None, None, None).unwrap();
 
-        // Verify dimensions based on mode (format: [time_slices][freq_bins])
+        // Verify dimensions based on mode (format: [freq_bins][time_slices])
         let expected_freq_bins = match *mode {
             "onesided" | "onesided2X" => 16 / 2 + 1, // 9 bins
             _ => 16,                                 // Full spectrum
         };
 
         assert_eq!(
-            stft_result[0].len(),
+            stft_result.len(),
             expected_freq_bins,
             "Mode {} should have {} frequency bins",
             mode,
             expected_freq_bins
         );
 
-        // Transpose for ISTFT (convert [time][freq] to [freq][time])
-        let stft_transposed = transpose_stft(&stft_result);
-
-        // Inverse STFT
-        let reconstructed = stft.istft(&stft_transposed, None, None).unwrap();
+        // Inverse STFT (STFT already returns [freq][time] format)
+        let reconstructed = stft.istft(&stft_result, None, None).unwrap();
 
         // Check reconstruction
         let min_len = signal.len().min(reconstructed.len());

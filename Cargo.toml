@@ -1,24 +1,25 @@
 [package]
 name = "veils"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Georgy Charkseliani <giordano2407@gmail.com>"]
 description = "A high-performance Short-Time Fourier Transform (STFT) library with scipy.signal.ShortTimeFFT compatibility"
 license = "MIT"
 repository = "https://github.com/veils/veils"
 homepage = "https://github.com/veils/veils"
-documentation = "https://docs.rs/veils"
+# documentation = "https://docs.rs/veils"
 keywords = ["fft", "stft", "signal-processing", "audio", "scipy"]
 categories = ["algorithms", "multimedia::audio", "science"]
 readme = "README.md"
 exclude = [
     "comparison_results/*",
     "docker/*",
-    "*.sh",
-    "*.py",
+    "scripts/*",
+    "python/*",
     "venv/*",
     "target/*",
-    "src/bin/*"
+    "src/bin/*",
+    "final_comparison_results.json"
 ]
 
 [dependencies]
