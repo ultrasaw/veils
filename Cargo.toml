@@ -1,12 +1,12 @@
 [package]
 name = "veils"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 authors = ["Georgy Charkseliani <giordano2407@gmail.com>"]
 description = "A high-performance Short-Time Fourier Transform (STFT) library with scipy.signal.ShortTimeFFT compatibility"
 license = "MIT"
-repository = "https://github.com/veils/veils"
-homepage = "https://github.com/veils/veils"
+repository = "https://github.com/ultrasaw/veils"
+homepage = "https://github.com/ultrasaw/veils"
 # documentation = "https://docs.rs/veils"
 keywords = ["fft", "stft", "signal-processing", "audio", "scipy"]
 categories = ["algorithms", "multimedia::audio", "science"]

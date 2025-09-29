@@ -1,6 +1,6 @@
 # Veils: Rust STFT Implementation
 
-This repository contains an implementation of the stripped-down `scipy.signal.ShortTimeFFT` class in Python and Rust, with comprehensive verification of ~1:1 accuracy between the implementations.
+This repository contains an implementation of the stripped-down `scipy.signal.ShortTimeFFT` class in Python and Rust, with verification of ~1:1 accuracy between the implementations.
 
 ## Files
 
