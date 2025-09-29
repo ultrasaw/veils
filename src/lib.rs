@@ -754,7 +754,7 @@ impl StandaloneSTFT {
     ///
     /// # Arguments
     ///
-    /// * `stft_data` - STFT data in format [frequency_bins][time_slices]
+    /// * `stft_data` - STFT data in format \[frequency_bins\]\[time_slices\]
     /// * `k0` - Start sample for reconstruction (None for automatic)
     /// * `k1` - End sample for reconstruction (None for automatic)
     ///
