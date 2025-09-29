@@ -114,13 +114,13 @@ jobs:
         mkdir -p comparison_results
         docker run --rm -v ${{ github.workspace }}/comparison_results:/workspace/comparison_results veils-python python run_full_comparison_docker.py --generate-data
 
-    - name: Build and run Rust sanity checks
+    - name: Build and run Rust comprehensive tests
       run: |
-        echo "Building Rust container..."
-        docker build -f docker/rust.Dockerfile -t veils-rust .
+        echo "Building unified Rust test container..."
+        docker build -f docker/unified_test.Dockerfile -t veils-unified-test .
         
-        echo "Running Rust sanity checks..."
-        docker run --rm -v ${{ github.workspace }}/comparison_results:/workspace/comparison_results veils-rust
+        echo "Running Rust comprehensive tests..."
+        docker run --rm -v ${{ github.workspace }}/comparison_results:/workspace/comparison_results veils-unified-test
 
   benchmark:
     name: Performance Benchmark

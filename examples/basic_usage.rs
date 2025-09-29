@@ -44,38 +44,65 @@ fn create_reference_signal() -> Vec<f64> {
     // Using the exact same random seed and signal as in instructions.md
     // np.random.seed(42); np.random.randn(30)
     vec![
-        0.49671415, -0.1382643, 0.64768854, 1.52302986, -0.23415337, -0.23413696,
-        1.57921282, 0.76743473, -0.46947439, 0.54256004, -0.46341769, -0.46572975,
-        0.24196227, -1.91328024, -1.72491783, -0.56228753, -1.01283112, 0.31424733,
-        -0.90802408, -1.4123037, 1.46564877, -0.2257763, 0.0675282, -1.42474819,
-        -0.54438272, 0.11092259, -1.15099358, 0.37569802, -0.60063869, -0.29169375
+        0.49671415,
+        -0.1382643,
+        0.64768854,
+        1.52302986,
+        -0.23415337,
+        -0.23413696,
+        1.57921282,
+        0.76743473,
+        -0.46947439,
+        0.54256004,
+        -0.46341769,
+        -0.46572975,
+        0.24196227,
+        -1.91328024,
+        -1.72491783,
+        -0.56228753,
+        -1.01283112,
+        0.31424733,
+        -0.90802408,
+        -1.4123037,
+        1.46564877,
+        -0.2257763,
+        0.0675282,
+        -1.42474819,
+        -0.54438272,
+        0.11092259,
+        -1.15099358,
+        0.37569802,
+        -0.60063869,
+        -0.29169375,
     ]
 }
 
 /// Test coefficient accuracy against scipy reference
-fn test_coefficient_accuracy(stft_result: &[Vec<Complex<f64>>]) -> Result<(), Box<dyn std::error::Error>> {
+fn test_coefficient_accuracy(
+    stft_result: &[Vec<Complex<f64>>],
+) -> Result<(), Box<dyn std::error::Error>> {
     println!("\n=== Coefficient Accuracy Test ===");
-    
+
     let expected = get_expected_scipy_coefficients();
     let mut max_diff = 0.0f64;
     let mut total_mse = 0.0f64;
     let mut count = 0;
-    
+
     println!("Comparing first 3 frequency bins:");
-    
+
     for freq_bin in 0..3.min(stft_result.len()) {
         println!("\nFreq bin {}:", freq_bin);
-        
+
         let rust_real: Vec<f64> = stft_result[freq_bin].iter().map(|c| c.re).collect();
         let rust_imag: Vec<f64> = stft_result[freq_bin].iter().map(|c| c.im).collect();
         let expected_real: Vec<f64> = expected[freq_bin].iter().map(|c| c.re).collect();
         let expected_imag: Vec<f64> = expected[freq_bin].iter().map(|c| c.im).collect();
-        
+
         println!("  Rust real:     {:?}", rust_real);
         println!("  Expected real: {:?}", expected_real);
         println!("  Rust imag:     {:?}", rust_imag);
         println!("  Expected imag: {:?}", expected_imag);
-        
+
         for time_slice in 0..5.min(stft_result[freq_bin].len()) {
             let rust_val = stft_result[freq_bin][time_slice];
             let expected_val = expected[freq_bin][time_slice];
@@ -83,20 +110,22 @@ fn test_coefficient_accuracy(stft_result: &[Vec<Complex<f64>>]) -> Result<(), Bo
             max_diff = max_diff.max(diff);
             total_mse += diff * diff;
             count += 1;
-            
+
             if diff > 1e-10 {
-                println!("  Large diff at [{}, {}]: rust={:?}, expected={:?}, diff={:.2e}", 
-                       freq_bin, time_slice, rust_val, expected_val, diff);
+                println!(
+                    "  Large diff at [{}, {}]: rust={:?}, expected={:?}, diff={:.2e}",
+                    freq_bin, time_slice, rust_val, expected_val, diff
+                );
             }
         }
     }
-    
+
     let mse = total_mse / count as f64;
-    
+
     println!("\nAccuracy Results:");
     println!("  Max coefficient difference: {:.2e}", max_diff);
     println!("  MSE: {:.2e}", mse);
-    
+
     if mse < 1e-12 {
         println!("  ✅ PERFECT: Coefficients match scipy exactly!");
         Ok(())
@@ -116,10 +145,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 0. FIRST: Test with reference signal from instructions.md for scipy compatibility
     println!("\n🔬 SCIPY COMPATIBILITY TEST");
     println!("Testing with reference signal from instructions.md...");
-    
+
     let reference_signal = create_reference_signal();
     let reference_window = hann_window(15); // nperseg = 15 from instructions
-    
+
     let mut reference_stft = StandaloneSTFT::new(
         reference_window,
         8,                // hop = 8 from instructions (nperseg - noverlap = 15 - 7)
@@ -129,21 +158,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         None,             // dual_win (computed automatically)
         None,             // phase_shift (defaults to 0)
     )?;
-    
+
     println!("Reference STFT parameters:");
     println!("  Window length: {}", reference_stft.m_num());
     println!("  Hop length: {}", reference_stft.hop());
     println!("  FFT length: {}", reference_stft.mfft());
     println!("  Frequency bins: {}", reference_stft.f_pts());
-    
+
     // Compute STFT on reference signal
     let reference_stft_result = reference_stft.stft(&reference_signal, None, None, None)?;
-    println!("Reference STFT shape: {} frequency bins × {} time slices", 
-             reference_stft_result.len(), reference_stft_result[0].len());
-    
+    println!(
+        "Reference STFT shape: {} frequency bins × {} time slices",
+        reference_stft_result.len(),
+        reference_stft_result[0].len()
+    );
+
     // Test coefficient accuracy against scipy
     test_coefficient_accuracy(&reference_stft_result)?;
-    
+
     // Test reconstruction
     let reference_reconstructed = reference_stft.istft(&reference_stft_result, None, None)?;
     let min_len = reference_signal.len().min(reference_reconstructed.len());
@@ -151,13 +183,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .iter()
         .zip(reference_reconstructed[..min_len].iter())
         .map(|(a, b)| (a - b).powi(2))
-        .sum::<f64>() / min_len as f64;
-    
+        .sum::<f64>()
+        / min_len as f64;
+
     println!("\nReconstruction Test:");
     println!("  Original length: {}", reference_signal.len());
     println!("  Reconstructed length: {}", reference_reconstructed.len());
     println!("  Reconstruction MSE: {:.2e}", reconstruction_mse);
-    
+
     if reconstruction_mse < 1e-30 {
         println!("  ✅ PERFECT: Reconstruction is mathematically perfect!");
     } else if reconstruction_mse < 1e-12 {

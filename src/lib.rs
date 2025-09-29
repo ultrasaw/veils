@@ -736,7 +736,7 @@ impl StandaloneSTFT {
         let num_freq_bins = self.f_pts();
         let num_time_slices = time_slice_results.len();
         let mut stft_result = vec![vec![Complex::new(0.0, 0.0); num_time_slices]; num_freq_bins];
-        
+
         for (time_idx, time_slice) in time_slice_results.iter().enumerate() {
             for (freq_idx, &freq_val) in time_slice.iter().enumerate() {
                 if freq_idx < num_freq_bins {
