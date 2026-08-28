@@ -1,347 +1,207 @@
 #!/usr/bin/env python3
-"""
-Final Python-Rust STFT Comparison Script
+"""Compare the Rust implementation directly with SciPy ShortTimeFFT."""
 
-This script performs comprehensive 1:1 comparison between the Python standalone_stft.py
-implementation and the Rust lib.rs implementation. It's designed to run in a clean
-Docker environment to avoid dependency issues.
-"""
+from __future__ import annotations
 
 import json
 import subprocess
-import tempfile
-import os
-from pathlib import Path
 import sys
+import tempfile
+from pathlib import Path
 
-# Import our standalone STFT implementation
-from standalone_stft import StandaloneSTFT
 import numpy as np
+import scipy
+from scipy.signal import ShortTimeFFT, windows
 
-def run_rust_stft(signal, window, hop_length, fs=1.0, fft_mode='onesided'):
-    """Run Rust STFT implementation and return results."""
-    
-    # Create temporary input file
-    test_data = {
-        'signal': signal.tolist() if hasattr(signal, 'tolist') else list(signal),
-        'window': window.tolist() if hasattr(window, 'tolist') else list(window),
-        'hop_length': hop_length,
-        'fs': fs,
-        'fft_mode': fft_mode
+
+ROOT = Path(__file__).resolve().parents[1]
+RESULTS_PATH = ROOT / "final_comparison_results.json"
+EXPECTED_SCIPY = "1.18.1"
+RTOL = 1e-12
+ATOL = 1e-12
+
+
+def run_rust(case: dict, rust_window: np.ndarray, dual_win: np.ndarray | None) -> dict:
+    payload = {
+        "signal": case["signal"].tolist(),
+        "window": rust_window.tolist(),
+        "hop_length": case["hop"],
+        "fs": case["fs"],
+        "fft_mode": case["fft_mode"],
+        "mfft": case["mfft"],
+        "dual_win": None if dual_win is None else dual_win.tolist(),
+        "phase_shift": case["phase_shift"],
+        "k1": len(case["signal"]),
     }
-    
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-        json.dump(test_data, f)
-        input_file = f.name
-    
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as file:
+        json.dump(payload, file)
+        input_path = Path(file.name)
+
     try:
-        # Run Rust binary
-        result = subprocess.run([
-            'cargo', 'run', '--bin', 'python_rust_comparison_helper', '--', input_file
-        ], capture_output=True, text=True, cwd=Path(__file__).parent)
-        
-        if result.returncode != 0:
-            raise RuntimeError(f"Rust execution failed: {result.stderr}")
-        
-        # Parse output
-        output_data = json.loads(result.stdout)
-        return output_data
-        
-    finally:
-        os.unlink(input_file)
-
-def compare_complex_matrices(py_matrix, rust_matrix, tolerance=1e-12):
-    """Compare complex matrices between Python and Rust."""
-    
-    if len(py_matrix) != len(rust_matrix):
-        return False, f"Frequency dimension mismatch: {len(py_matrix)} vs {len(rust_matrix)}"
-    
-    max_diff = 0.0
-    total_diff_sq = 0.0
-    count = 0
-    
-    for f in range(len(py_matrix)):
-        if len(py_matrix[f]) != len(rust_matrix[f]):
-            return False, f"Time dimension mismatch at freq {f}: {len(py_matrix[f])} vs {len(rust_matrix[f])}"
-        
-        for t in range(len(py_matrix[f])):
-            py_val = py_matrix[f][t]
-            rust_val = complex(rust_matrix[f][t]['real'], rust_matrix[f][t]['imag'])
-            
-            diff = abs(py_val - rust_val)
-            max_diff = max(max_diff, diff)
-            total_diff_sq += diff * diff
-            count += 1
-    
-    mse = total_diff_sq / count if count > 0 else 0.0
-    passed = max_diff < tolerance
-    
-    return passed, {
-        'max_difference': float(max_diff),
-        'mse': float(mse),
-        'rmse': float(mse ** 0.5),
-        'total_comparisons': int(count)
-    }
-
-def compare_real_arrays(py_array, rust_array, tolerance=1e-12):
-    """Compare real arrays between Python and Rust."""
-    
-    min_len = min(len(py_array), len(rust_array))
-    
-    max_diff = 0.0
-    total_diff_sq = 0.0
-    
-    for i in range(min_len):
-        diff = abs(py_array[i] - rust_array[i])
-        max_diff = max(max_diff, diff)
-        total_diff_sq += diff * diff
-    
-    mse = total_diff_sq / min_len if min_len > 0 else 0.0
-    passed = max_diff < tolerance
-    
-    return passed, {
-        'max_difference': float(max_diff),
-        'mse': float(mse),
-        'rmse': float(mse ** 0.5),
-        'compared_length': int(min_len)
-    }
-
-def test_signal_configuration(signal_name, signal, window_name, window, 
-                            hop_length, fft_mode='onesided', fs=1.0):
-    """Test a specific signal-window configuration."""
-    
-    print(f"\n--- {signal_name} + {window_name} (hop={hop_length}, mode={fft_mode}) ---")
-    
-    try:
-        # Python implementation
-        python_stft = StandaloneSTFT(
-            win=window, 
-            hop=hop_length, 
-            fs=fs, 
-            fft_mode=fft_mode
+        result = subprocess.run(
+            [
+                "cargo",
+                "run",
+                "--quiet",
+                "--bin",
+                "python_rust_comparison_helper",
+                "--",
+                str(input_path),
+            ],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
         )
-        
-        py_stft_result = python_stft.stft(signal)
-        py_reconstruction = python_stft.istft(py_stft_result)
-        
-        print(f"  Python STFT shape: {len(py_stft_result)} x {len(py_stft_result[0])}")
-        print(f"  Python reconstruction length: {len(py_reconstruction)}")
-        
-        # Rust implementation
-        rust_result = run_rust_stft(signal, window, hop_length, fs, fft_mode)
-        rust_stft_result = rust_result['stft']
-        rust_reconstruction = np.array(rust_result['istft'])
-        
-        print(f"  Rust STFT shape: {len(rust_stft_result)} x {len(rust_stft_result[0])}")
-        print(f"  Rust reconstruction length: {len(rust_reconstruction)}")
-        
-        # Compare STFT coefficients
-        stft_match, stft_details = compare_complex_matrices(py_stft_result, rust_stft_result)
-        
-        # Compare reconstructions
-        recon_match, recon_details = compare_real_arrays(py_reconstruction, rust_reconstruction)
-        
-        # Calculate reconstruction errors
-        min_len = min(len(signal), len(py_reconstruction))
-        py_recon_error = np.mean(np.abs(signal[:min_len] - py_reconstruction[:min_len]))
-        
-        min_len = min(len(signal), len(rust_reconstruction))
-        rust_recon_error = np.mean(np.abs(signal[:min_len] - rust_reconstruction[:min_len]))
-        
-        # Assessment
-        perfect_py = py_recon_error < 1e-10
-        perfect_rust = rust_recon_error < 1e-10
-        implementations_match = stft_match and recon_match
-        
-        overall_success = perfect_py and perfect_rust and implementations_match
-        
-        # Results
-        status = "✅ PASS" if overall_success else "❌ FAIL"
-        print(f"  {status}")
-        print(f"    STFT coefficients match: {'✅' if stft_match else '❌'} (max diff: {stft_details['max_difference']:.2e})")
-        print(f"    Python reconstruction: {'✅' if perfect_py else '❌'} (error: {py_recon_error:.2e})")
-        print(f"    Rust reconstruction: {'✅' if perfect_rust else '❌'} (error: {rust_recon_error:.2e})")
-        print(f"    Cross-implementation: {'✅' if recon_match else '❌'} (max diff: {recon_details['max_difference']:.2e})")
-        
-        return {
-            'signal_name': signal_name,
-            'window_name': window_name,
-            'hop_length': int(hop_length),
-            'fft_mode': fft_mode,
-            'overall_success': bool(overall_success),
-            'stft_match': bool(stft_match),
-            'perfect_py': bool(perfect_py),
-            'perfect_rust': bool(perfect_rust),
-            'implementations_match': bool(implementations_match),
-            'stft_details': stft_details,
-            'recon_details': recon_details,
-            'py_recon_error': float(py_recon_error),
-            'rust_recon_error': float(rust_recon_error)
-        }
-        
-    except Exception as e:
-        print(f"  ❌ ERROR: {str(e)}")
-        return {
-            'signal_name': signal_name,
-            'window_name': window_name,
-            'hop_length': int(hop_length),
-            'fft_mode': fft_mode,
-            'overall_success': False,
-            'error': str(e)
-        }
+        return json.loads(result.stdout)
+    finally:
+        input_path.unlink()
 
-def create_test_data():
-    """Create comprehensive test data."""
-    
-    np.random.seed(42)  # For reproducible results
-    
-    signals = {}
-    windows = {}
-    
-    # Test signals
-    signals['reference'] = np.array([
-        0.49671415, -0.1382643, 0.64768854, 1.52302986, -0.23415337,
-        -0.23413696, 1.57921282, 0.76743473, -0.46947439, 0.54256004,
-        -0.46341769, -0.46572975, 0.24196227, -1.91328024, -1.72491783,
-        -0.56228753, -1.01283112, 0.31424733, -0.90802408, -1.4123037,
-        1.46564877, -0.2257763, 0.0675282, -1.42474819, -0.54438272,
-        0.11092259, -1.15099358, 0.37569802, -0.60063869, -0.29169375
-    ])
-    
-    t = np.linspace(0, 2*np.pi, 64)
-    signals['sine_5hz'] = np.sin(5 * t)
-    signals['chirp'] = np.sin(2 * np.pi * t * t / 4)
-    
-    impulse = np.zeros(64)
+
+def decode_stft(values: list[list[dict[str, float]]]) -> np.ndarray:
+    return np.asarray(
+        [[complex(value["real"], value["imag"]) for value in row] for row in values],
+        dtype=np.complex128,
+    )
+
+
+def metrics(expected: np.ndarray, actual: np.ndarray) -> dict[str, float]:
+    difference = np.abs(expected - actual)
+    return {
+        "max_abs": float(np.max(difference, initial=0.0)),
+        "rmse": float(np.sqrt(np.mean(difference**2))) if difference.size else 0.0,
+    }
+
+
+def create_cases() -> list[dict]:
+    fs = 1000.0
+    sample_count = 65
+    time = np.arange(sample_count, dtype=np.float64) / fs
+    impulse = np.zeros(sample_count)
     impulse[32] = 1.0
-    signals['impulse'] = impulse
-    
-    signals['noise'] = np.random.randn(64) * 0.5
-    signals['multi_freq'] = np.sin(2 * t) + 0.5 * np.sin(7 * t) + 0.3 * np.sin(13 * t)
-    
-    # Test windows
-    for length in [8, 15, 16, 32]:
-        windows[f'hann_{length}'] = np.array([
-            0.5 * (1 - np.cos(2 * np.pi * i / length)) 
-            for i in range(length)
-        ])
-    
-    windows['rect_16'] = np.ones(16)
-    windows['hamming_16'] = np.array([
-        0.54 - 0.46 * np.cos(2 * np.pi * i / 16) 
-        for i in range(16)
-    ])
-    
-    return signals, windows
+    sine = np.sin(2 * np.pi * 73.0 * time)
+    noise = np.random.default_rng(42).standard_normal(sample_count)
 
-def main():
-    """Run comprehensive Python-Rust STFT comparison."""
-    
-    print("🔬 Final Python-Rust STFT Implementation Comparison")
-    print("=" * 65)
-    
-    # Create test data
-    print("\n📊 Generating test data...")
-    signals, windows = create_test_data()
-    
-    print(f"Created {len(signals)} test signals and {len(windows)} test windows")
-    
-    # Test configurations
-    test_configs = [
-        # (signal_name, window_name, hop_length, fft_mode)
-        ('reference', 'hann_15', 8, 'onesided'),
-        ('sine_5hz', 'hann_16', 4, 'onesided'),
-        ('sine_5hz', 'hann_16', 4, 'twosided'),
-        ('sine_5hz', 'hann_16', 4, 'centered'),
-        ('chirp', 'hann_32', 8, 'onesided'),
-        ('impulse', 'hann_16', 4, 'onesided'),
-        ('noise', 'hamming_16', 8, 'onesided'),
-        ('multi_freq', 'hann_16', 4, 'onesided'),
+    return [
+        dict(name="rectangular-even", signal=impulse, window=np.ones(8), hop=8,
+             fs=fs, fft_mode="onesided", mfft=8, phase_shift=0),
+        dict(name="odd-padded-negative-phase", signal=noise,
+             window=windows.hann(15, sym=False), hop=5, fs=fs,
+             fft_mode="onesided", mfft=21, phase_shift=-7),
+        dict(name="twosided-padded", signal=sine, window=windows.hann(16, sym=False),
+             hop=4, fs=fs, fft_mode="twosided", mfft=24, phase_shift=3),
+        dict(name="centered-odd-mfft", signal=noise,
+             window=windows.hamming(16, sym=False), hop=8, fs=fs,
+             fft_mode="centered", mfft=17, phase_shift=-16),
+        dict(name="onesided2x-magnitude", signal=sine,
+             window=windows.hann(16, sym=False), hop=4, fs=fs,
+             fft_mode="onesided2X", mfft=20, phase_shift=0,
+             scale_to="magnitude"),
+        dict(name="explicit-dual-window", signal=noise,
+             window=windows.hamming(15, sym=False), hop=5, fs=fs,
+             fft_mode="onesided", mfft=18, phase_shift=4,
+             explicit_dual=True),
     ]
-    
-    # Run tests
-    print(f"\n🧪 Running {len(test_configs)} test configurations...")
-    results = []
-    
-    for signal_name, window_name, hop_length, fft_mode in test_configs:
-        if signal_name in signals and window_name in windows:
-            signal = signals[signal_name]
-            window = windows[window_name]
-            
-            # Skip if signal is too short for window
-            if len(signal) < len(window):
-                print(f"\n--- Skipping {signal_name} + {window_name}: signal too short ---")
-                continue
-                
-            result = test_signal_configuration(
-                signal_name, signal, window_name, window, hop_length, fft_mode
-            )
-            results.append(result)
-    
-    # Summary
-    print(f"\n\n📋 COMPREHENSIVE SUMMARY")
-    print("=" * 35)
-    
-    total_tests = len(results)
-    passed_tests = sum(1 for r in results if r.get('overall_success', False))
-    failed_tests = total_tests - passed_tests
-    
-    print(f"Total tests: {total_tests}")
-    print(f"Passed: {passed_tests} ✅")
-    print(f"Failed: {failed_tests} ❌")
-    print(f"Success rate: {100 * passed_tests / total_tests:.1f}%")
-    
-    # Detailed analysis
-    stft_matches = sum(1 for r in results if r.get('stft_match', False))
-    perfect_py = sum(1 for r in results if r.get('perfect_py', False))
-    perfect_rust = sum(1 for r in results if r.get('perfect_rust', False))
-    impl_matches = sum(1 for r in results if r.get('implementations_match', False))
-    
-    print(f"\nDetailed Analysis:")
-    print(f"  STFT coefficients match: {stft_matches}/{total_tests} ✅")
-    print(f"  Python perfect reconstruction: {perfect_py}/{total_tests} ✅")
-    print(f"  Rust perfect reconstruction: {perfect_rust}/{total_tests} ✅")
-    print(f"  Implementation consistency: {impl_matches}/{total_tests} ✅")
-    
-    if failed_tests > 0:
-        print(f"\n❌ Failed tests:")
-        for result in results:
-            if not result.get('overall_success', False):
-                print(f"  - {result['signal_name']} + {result['window_name']} "
-                      f"(hop={result['hop_length']}, mode={result['fft_mode']})")
-                if 'error' in result:
-                    print(f"    Error: {result['error']}")
-    
-    # Save detailed results
-    output_file = 'final_comparison_results.json'
-    with open(output_file, 'w') as f:
-        json.dump({
-            'summary': {
-                'total_tests': int(total_tests),
-                'passed_tests': int(passed_tests),
-                'failed_tests': int(failed_tests),
-                'success_rate': float(passed_tests / total_tests if total_tests > 0 else 0),
-                'stft_matches': int(stft_matches),
-                'perfect_py': int(perfect_py),
-                'perfect_rust': int(perfect_rust),
-                'impl_matches': int(impl_matches)
-            },
-            'detailed_results': results
-        }, f, indent=2)
-    
-    print(f"\n📄 Detailed results saved to: {output_file}")
-    
-    # Final verdict
-    if failed_tests == 0:
-        print(f"\n🎉 PERFECT SUCCESS!")
-        print(f"   Python and Rust STFT implementations are 1:1 compatible.")
-        print(f"   All tests passed with perfect reconstruction and coefficient matching.")
-        return 0
-    else:
-        print(f"\n⚠️  PARTIAL SUCCESS")
-        print(f"   {passed_tests}/{total_tests} tests passed.")
-        print(f"   Check detailed results for more information.")
-        return 1
 
-if __name__ == '__main__':
+
+def run_case(case: dict) -> dict:
+    scale_to = case.get("scale_to")
+    initial = ShortTimeFFT(
+        case["window"],
+        case["hop"],
+        case["fs"],
+        fft_mode=case["fft_mode"],
+        mfft=case["mfft"],
+        scale_to=scale_to,
+        phase_shift=case["phase_shift"],
+    )
+
+    # onesided2X requires scaling in SciPy. Passing the effective windows to
+    # Rust tests the transform without adding a second scaling API.
+    rust_window = initial.win.copy()
+    dual_win = initial.dual_win.copy() if case.get("explicit_dual") or scale_to else None
+    oracle = ShortTimeFFT(
+        rust_window,
+        case["hop"],
+        case["fs"],
+        fft_mode=case["fft_mode"],
+        mfft=case["mfft"],
+        dual_win=dual_win,
+        phase_shift=case["phase_shift"],
+    ) if case["fft_mode"] != "onesided2X" else initial
+
+    scipy_stft = oracle.stft(case["signal"])
+    scipy_istft = oracle.istft(scipy_stft, k0=0, k1=len(case["signal"]))
+    rust = run_rust(case, rust_window, dual_win)
+    rust_stft = decode_stft(rust["stft"])
+    rust_istft = np.asarray(rust["istft"], dtype=np.float64)
+
+    expected_properties = {
+        "m_num": oracle.m_num,
+        "f_pts": oracle.f_pts,
+        "p_min": oracle.p_min,
+        "p_max": oracle.p_max(len(case["signal"])),
+        "mfft": oracle.mfft,
+        "hop": oracle.hop,
+        "fs": oracle.fs,
+    }
+    if rust["properties"] != expected_properties:
+        raise AssertionError(
+            f"property mismatch: expected {expected_properties}, got {rust['properties']}"
+        )
+    if rust_stft.shape != scipy_stft.shape:
+        raise AssertionError(
+            f"STFT shape mismatch: expected {scipy_stft.shape}, got {rust_stft.shape}"
+        )
+    if rust_istft.shape != scipy_istft.shape:
+        raise AssertionError(
+            f"ISTFT shape mismatch: expected {scipy_istft.shape}, got {rust_istft.shape}"
+        )
+
+    np.testing.assert_allclose(rust_stft, scipy_stft, rtol=RTOL, atol=ATOL)
+    np.testing.assert_allclose(rust_istft, scipy_istft.real, rtol=RTOL, atol=ATOL)
+    np.testing.assert_allclose(rust_istft, case["signal"], rtol=RTOL, atol=ATOL)
+    np.testing.assert_allclose(rust["frequencies"], oracle.f, rtol=RTOL, atol=ATOL)
+    np.testing.assert_allclose(
+        rust["times"], oracle.t(len(case["signal"])), rtol=RTOL, atol=ATOL
+    )
+
+    return {
+        "name": case["name"],
+        "passed": True,
+        "shape": list(scipy_stft.shape),
+        "stft": metrics(scipy_stft, rust_stft),
+        "istft": metrics(scipy_istft.real, rust_istft),
+    }
+
+
+def main() -> int:
+    if scipy.__version__ != EXPECTED_SCIPY:
+        raise RuntimeError(
+            f"SciPy {EXPECTED_SCIP} is required, found {scipy.__version__}"
+        )
+
+    results = []
+    for case in create_cases():
+        try:
+            result = run_case(case)
+            print(f"PASS {case['name']}: max STFT diff {result['stft']['max_abs']:.3e}")
+            results.append(result)
+        except Exception as error:
+            print(f"FAIL {case['name']}: {error}", file=sys.stderr)
+            results.append({"name": case["name"], "passed": False, "error": str(error)})
+
+    passed = sum(result["passed"] for result in results)
+    report = {
+        "scipy_version": scipy.__version__,
+        "numpy_version": np.__version__,
+        "summary": {"total": len(results), "passed": passed, "failed": len(results) - passed},
+        "results": results,
+    }
+    RESULTS_PATH.write_text(json.dumps(report, indent=2) + "\n")
+    print(f"{passed}/{len(results)} compatibility cases passed")
+    return 0 if passed == len(results) else 1
+
+
+if __name__ == "__main__":
     sys.exit(main())

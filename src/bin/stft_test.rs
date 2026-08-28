@@ -191,9 +191,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Note: Python STFT shape is (freq, time), Rust is (time, freq)
     if !stft_result.is_empty() && !test_data.stft_real.is_empty() {
         println!("\nSTFT comparison (first 3 frequency bins, first time slice):");
-        for i in 0..3.min(stft_result[0].len()).min(test_data.stft_real.len()) {
+        let count = 3.min(stft_result[0].len());
+        for (i, python_real) in test_data.stft_real.iter().enumerate().take(count) {
             let rust_val = stft_result[0][i]; // First time slice, i-th frequency bin
-            let python_val = Complex::new(test_data.stft_real[i][0], test_data.stft_imag[i][0]); // i-th frequency bin, first time slice
+            let python_val = Complex::new(python_real[0], test_data.stft_imag[i][0]); // i-th frequency bin, first time slice
             let diff = (rust_val - python_val).norm();
             println!(
                 "  Bin {}: Rust={:.6}, Python={:.6}, Diff={:.2e}",

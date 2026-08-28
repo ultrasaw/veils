@@ -108,9 +108,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Compare STFT results
     let mut max_stft_diff = 0.0f64;
-    for t in 0..rust_stft.len().min(debug_data.stft_real[0].len()) {
-        for f in 0..rust_stft[0].len().min(debug_data.stft_real.len()) {
-            let rust_val = rust_stft[t][f];
+    let time_count = debug_data.stft_real[0].len();
+    let frequency_count = debug_data.stft_real.len();
+    for (t, rust_time) in rust_stft.iter().enumerate().take(time_count) {
+        for (f, &rust_val) in rust_time.iter().enumerate().take(frequency_count) {
             let python_val = Complex::new(debug_data.stft_real[f][t], debug_data.stft_imag[f][t]);
             let diff = (rust_val - python_val).norm();
             max_stft_diff = max_stft_diff.max(diff);
