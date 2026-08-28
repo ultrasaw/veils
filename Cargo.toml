@@ -1,6 +1,6 @@
 [package]
 name = "veils"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 authors = ["Georgy Charkseliani <giordano2407@gmail.com>"]
 description = "A high-performance Short-Time Fourier Transform (STFT) library with scipy.signal.ShortTimeFFT compatibility"

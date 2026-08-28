@@ -1,6 +1,9 @@
 # Changelog
 
-## 0.1.3 - 2026-08-28
+## 0.1.4 - 2026-08-28
+
+Version 0.1.3 was not published because its tag name was reserved by a failed
+immutable GitHub release draft.
 
 - Validate compatibility directly against `scipy.signal.ShortTimeFFT` 1.18.1.
 - Match SciPy validation for sampling frequency, FFT length, phase shift, STFT
