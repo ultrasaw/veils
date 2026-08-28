@@ -466,9 +466,10 @@ fn test_signal(
     // Get first few STFT values for detailed comparison (only if we have Python data)
     let mut first_few_values = Vec::new();
     if !test_data.stft_real.is_empty() && !test_data.stft_real[0].is_empty() {
-        for i in 0..5.min(rust_stft[0].len()).min(test_data.stft_real.len()) {
+        let count = 5.min(rust_stft[0].len());
+        for (i, python_real) in test_data.stft_real.iter().enumerate().take(count) {
             let rust_val = rust_stft[0][i];
-            let python_val = Complex::new(test_data.stft_real[i][0], test_data.stft_imag[i][0]);
+            let python_val = Complex::new(python_real[0], test_data.stft_imag[i][0]);
             let diff = (rust_val - python_val).norm();
             first_few_values.push(StftValueComparison {
                 rust_real: rust_val.re,

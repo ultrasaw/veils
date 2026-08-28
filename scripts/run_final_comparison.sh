@@ -22,4 +22,5 @@ else
     echo ""
     echo "⚠️  Comparison completed with issues."
     echo "   Check final_comparison_results.json for detailed results."
+    exit 1
 fi

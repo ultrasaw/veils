@@ -1,12 +1,14 @@
-// '''WARNING 100% AI generated file'''
+// Portions of this implementation are adapted from SciPy's
+// scipy/signal/_short_time_fft.py. See LICENSE-SCIPY.
 //! # Veils: High-Performance STFT Library
 //!
 //! Veils provides a high-performance Short-Time Fourier Transform (STFT) implementation
-//! with perfect compatibility to Python's scipy.signal.ShortTimeFFT.
+//! compatible with the one-dimensional, real-valued subset of
+//! `scipy.signal.ShortTimeFFT` documented in the project README.
 //!
 //! ## Features
 //!
-//! - **Perfect scipy compatibility**: Mathematically identical results to Python scipy
+//! - **SciPy compatibility**: Verified against SciPy 1.18.1
 //! - **High performance**: Optimized Rust implementation using rustfft
 //! - **Multiple FFT modes**: TwoSided, Centered, OneSided, OneSided2X
 //! - **Invertible STFT**: Perfect reconstruction with canonical dual window
@@ -85,7 +87,8 @@ impl FftMode {
 
 /// Short-Time Fourier Transform implementation
 ///
-/// This struct provides a complete STFT implementation with perfect scipy compatibility.
+/// This struct provides a real-valued STFT implementation compatible with the
+/// supported subset of SciPy's `ShortTimeFFT`.
 /// It supports forward STFT, inverse STFT (ISTFT), and various FFT modes.
 ///
 /// # Examples
@@ -185,6 +188,10 @@ impl StandaloneSTFT {
             return Err(format!("Parameter hop={} is not >= 1!", hop));
         }
 
+        if fs <= 0.0 || fs.is_nan() {
+            return Err(format!("Sampling frequency fs={} must be positive!", fs));
+        }
+
         // Convert window to complex
         let win_complex: Vec<Complex<f64>> =
             win.into_iter().map(|x| Complex::new(x, 0.0)).collect();
@@ -192,6 +199,20 @@ impl StandaloneSTFT {
         let fft_mode = fft_mode.unwrap_or("onesided").parse()?;
         let mfft = mfft.unwrap_or(win_complex.len());
         let phase_shift = phase_shift.unwrap_or(0);
+
+        if mfft < win_complex.len() {
+            return Err(format!(
+                "mfft={} must be at least the window length {}!",
+                mfft,
+                win_complex.len()
+            ));
+        }
+        if !(-(mfft as i64) < phase_shift as i64 && (phase_shift as i64) < mfft as i64) {
+            return Err(format!(
+                "-mfft < phase_shift < mfft does not hold for mfft={}, phase_shift={}!",
+                mfft, phase_shift
+            ));
+        }
 
         // Convert dual window if provided
         let dual_win_complex = if let Some(dw) = dual_win {
@@ -340,7 +361,8 @@ impl StandaloneSTFT {
             // Zero pad if needed
             x.resize(self.mfft, Complex::new(0.0, 0.0));
         }
-        let p_s = ((self.phase_shift + self.m_num_mid() as i32) % self.m_num() as i32) as usize;
+        let p_s =
+            (self.phase_shift + self.m_num_mid() as i32).rem_euclid(self.m_num() as i32) as usize;
         // Equivalent to np.roll(x, -p_s, axis=-1)
         x.rotate_left(p_s);
 
@@ -432,7 +454,7 @@ impl StandaloneSTFT {
 
                 // Mirror the spectrum (conjugate symmetry)
                 // Skip DC (index 0) and Nyquist frequency (last element for even mfft)
-                let mirror_end = if self.mfft % 2 == 0 {
+                let mirror_end = if self.mfft.is_multiple_of(2) {
                     // For even mfft, don't mirror the Nyquist frequency
                     (self.mfft / 2).min(x.len() - 1)
                 } else {
@@ -496,7 +518,8 @@ impl StandaloneSTFT {
         }
 
         // Handle phase shift - always apply like scipy does
-        let p_s = ((self.phase_shift + self.m_num_mid() as i32) % self.m_num() as i32) as usize;
+        let p_s =
+            (self.phase_shift + self.m_num_mid() as i32).rem_euclid(self.m_num() as i32) as usize;
         x.rotate_right(p_s);
 
         // Return only the window length
@@ -534,9 +557,14 @@ impl StandaloneSTFT {
                 return (n, -p);
             }
             // Check if n_next is valid and all w2[n_next:] == 0
-            if n_next >= 0
-                && (n_next as usize) < w2.len()
-                && w2[(n_next as usize)..].iter().all(|&x| x == 0.0)
+            let suffix_start = if n_next < 0 {
+                self.m_num() as i32 + n_next
+            } else {
+                n_next
+            };
+            if suffix_start >= 0
+                && (suffix_start as usize) < w2.len()
+                && w2[(suffix_start as usize)..].iter().all(|&x| x == 0.0)
             {
                 return (n, -p);
             }
@@ -601,7 +629,7 @@ impl StandaloneSTFT {
         let p0 = p0.unwrap_or(self.p_min());
         let p1 = p1.unwrap_or(self.p_max(n));
 
-        if !(self.p_min() <= p0 && p0 < p1) {
+        if !(self.p_min() <= p0 && p0 < p1 && p1 <= self.p_max(n)) {
             return Err(format!("Invalid slice range: p0={}, p1={}", p0, p1));
         }
 
@@ -810,6 +838,9 @@ impl StandaloneSTFT {
                 f_pts_expected
             ));
         }
+        if stft_data.iter().any(|row| row.len() != time_slices) {
+            return Err("STFT data must have equal-length frequency rows".to_string());
+        }
 
         let n_min = self.m_num() - self.m_num_mid();
         let q_num = self.p_max(n_min) - self.p_min();
@@ -826,8 +857,12 @@ impl StandaloneSTFT {
         let k0 = k0.unwrap_or(0);
         let k1 = k1.unwrap_or(k_max);
 
-        if k0 >= k1 {
-            return Err(format!("k0={} must be < k1={}", k0, k1));
+        let k_min = self.pre_padding().0;
+        if !(k_min <= k0 && k0 < k1 && k1 <= k_max) {
+            return Err(format!(
+                "k_min={} <= k0={} < k1={} <= k_max={} does not hold",
+                k_min, k0, k1, k_max
+            ));
         }
 
         let num_pts = (k1 - k0) as usize;
@@ -840,9 +875,9 @@ impl StandaloneSTFT {
 
         // Match Python's q0 calculation exactly
         let q0 = if k0 >= 0 {
-            k0 / self.hop as i32 + self.p_min()
+            k0.div_euclid(self.hop as i32) + self.p_min()
         } else {
-            k0 / self.hop as i32
+            k0.div_euclid(self.hop as i32)
         };
         let q1 = (self.p_max(k1 as usize)).min(q_max);
 
@@ -928,7 +963,7 @@ impl StandaloneSTFT {
     }
 
     pub fn f(&self) -> Vec<f64> {
-        let freqs: Vec<f64> = if self.fft_mode.is_onesided() {
+        let mut freqs: Vec<f64> = if self.fft_mode.is_onesided() {
             (0..self.f_pts())
                 .map(|i| i as f64 / (self.mfft as f64 * self.sampling_period()))
                 .collect()
@@ -936,7 +971,7 @@ impl StandaloneSTFT {
             (0..self.mfft)
                 .map(|i| {
                     let freq = i as f64 / (self.mfft as f64 * self.sampling_period());
-                    if i > self.mfft / 2 {
+                    if i >= self.mfft.div_ceil(2) {
                         freq - 1.0 / self.sampling_period()
                     } else {
                         freq
@@ -945,6 +980,10 @@ impl StandaloneSTFT {
                 .collect()
         };
 
+        if matches!(self.fft_mode, FftMode::Centered) {
+            let shift = self.mfft.div_ceil(2);
+            freqs.rotate_left(shift);
+        }
         freqs
     }
 

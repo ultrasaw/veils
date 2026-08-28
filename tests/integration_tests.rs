@@ -90,6 +90,51 @@ fn test_stft_invalid_parameters() {
         None,
     );
     assert!(result.is_err());
+
+    let window = hann_window(16);
+    assert!(
+        StandaloneSTFT::new(window.clone(), 4, 0.0, Some("onesided"), None, None, None).is_err()
+    );
+    assert!(StandaloneSTFT::new(
+        window.clone(),
+        4,
+        1000.0,
+        Some("onesided"),
+        Some(15),
+        None,
+        None
+    )
+    .is_err());
+    assert!(StandaloneSTFT::new(
+        window.clone(),
+        4,
+        f64::NAN,
+        Some("onesided"),
+        None,
+        None,
+        None
+    )
+    .is_err());
+    assert!(StandaloneSTFT::new(
+        window.clone(),
+        4,
+        f64::INFINITY,
+        Some("onesided"),
+        None,
+        None,
+        None
+    )
+    .is_ok());
+    assert!(StandaloneSTFT::new(
+        window,
+        4,
+        1000.0,
+        Some("onesided"),
+        Some(16),
+        None,
+        Some(-16)
+    )
+    .is_err());
 }
 
 #[test]
@@ -348,6 +393,35 @@ fn test_time_axis() {
 
     assert!(!time_axis.is_empty());
     assert_eq!(time_axis[0], stft.p_min() as f64 * stft.delta_t());
+}
+
+#[test]
+fn test_frequency_axes_match_scipy_conventions() {
+    let window = hann_window(4);
+    let twosided =
+        StandaloneSTFT::new(window.clone(), 2, 4.0, Some("twosided"), None, None, None).unwrap();
+    assert_eq!(twosided.f(), vec![0.0, 1.0, -2.0, -1.0]);
+
+    let centered = StandaloneSTFT::new(window, 2, 4.0, Some("centered"), None, None, None).unwrap();
+    assert_eq!(centered.f(), vec![-2.0, -1.0, 0.0, 1.0]);
+}
+
+#[test]
+fn test_slice_and_reconstruction_ranges_are_bounded() {
+    let window = hann_window(16);
+    let mut stft =
+        StandaloneSTFT::new(window, 4, 1000.0, Some("onesided"), None, None, Some(-7)).unwrap();
+    let signal = vec![1.0; 64];
+    assert!(stft
+        .stft(&signal, None, Some(stft.p_max(signal.len()) + 1), None)
+        .is_err());
+
+    let coefficients = stft.stft(&signal, None, None, None).unwrap();
+    assert!(stft.istft(&coefficients, Some(0), Some(10_000)).is_err());
+
+    let mut ragged = coefficients.clone();
+    ragged[1].pop();
+    assert!(stft.istft(&ragged, Some(0), Some(64)).is_err());
 }
 
 /// Test that ensures the same input always produces the same output (deterministic)

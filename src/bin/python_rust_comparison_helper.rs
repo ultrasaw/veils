@@ -18,6 +18,10 @@ struct TestInput {
     hop_length: usize,
     fs: f64,
     fft_mode: String,
+    mfft: Option<usize>,
+    dual_win: Option<Vec<f64>>,
+    phase_shift: Option<i32>,
+    k1: Option<i32>,
 }
 
 #[derive(Serialize)]
@@ -40,6 +44,8 @@ struct TestOutput {
     stft: Vec<Vec<ComplexValue>>,
     istft: Vec<f64>,
     properties: StftProperties,
+    frequencies: Vec<f64>,
+    times: Vec<f64>,
 }
 
 #[derive(Serialize)]
@@ -73,9 +79,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         test_input.hop_length,
         test_input.fs,
         Some(&test_input.fft_mode),
-        None, // mfft (defaults to window length)
-        None, // dual_win (computed automatically)
-        None, // phase_shift
+        test_input.mfft,
+        test_input.dual_win,
+        test_input.phase_shift,
     )?;
 
     // Perform STFT
@@ -88,7 +94,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .collect();
 
     // Perform ISTFT
-    let istft_result = stft.istft(&stft_result, None, None)?;
+    let istft_result = stft.istft(&stft_result, None, test_input.k1)?;
+    let frequencies = stft.f();
+    let times = stft.t(test_input.signal.len(), None, None, None)?;
 
     // Collect properties
     let properties = StftProperties {
@@ -106,6 +114,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         stft: stft_serializable,
         istft: istft_result,
         properties,
+        frequencies,
+        times,
     };
 
     // Output JSON to stdout
